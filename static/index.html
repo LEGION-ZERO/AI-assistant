@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Linux 智能运维助手</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --panel: #161b22;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Noto Sans SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .input-row input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .input-row input::placeholder { color: var(--muted); }
+    .input-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+    }
+    .btn {
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #79b8ff; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .section-title {
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .section-body {
+      padding: 1rem;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .section-body.empty { color: var(--muted); }
+    .cmd-block {
+      margin-bottom: 1rem;
+      border-left: 3px solid var(--accent);
+      padding-left: 1rem;
+    }
+    .cmd-block:last-child { margin-bottom: 0; }
+    .cmd-block .asset { font-weight: 600; color: var(--accent); margin-bottom: 0.25rem; }
+    .cmd-block .cmd { font-family: "JetBrains Mono", monospace; color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .cmd-block .result { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; white-space: pre-wrap; }
+    .reply-body { white-space: pre-wrap; }
+    .error {
+      background: rgba(248, 81, 73, 0.1);
+      border-color: #f85149;
+      color: #f85149;
+    }
+    .loading { opacity: 0.7; pointer-events: none; }
+    .cmd-block.pending .result { color: var(--muted); }
+    .cmd-block.pending .result::after { content: " ▋"; animation: blink 0.8s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    #commands:not(.empty) { max-height: 50vh; overflow-y: auto; }
+    .nav {
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    .nav a { color: var(--muted); text-decoration: none; }
+    .nav a:hover, .nav a.active { color: var(--accent); }
+    .result-hidden { display: none !important; }
+    .form-row { margin-bottom: 1rem; }
+    .form-row label { display: block; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.85rem; }
+    .form-row select {
+      width: 100%;
+      max-width: 280px;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .form-row select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
+    }
+    .form-group label { display: block; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.85rem; }
+    .form-group input, .form-group select {
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .input-row { align-items: flex-end; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="active">首页</a>
+    <a href="/assets">资产管理</a>
+  </nav>
+  <div class="container">
+    <h1>Linux 智能运维助手</h1>
+    <p class="subtitle">选择运维对象（可选），输入自然语言指令，由 AI 规划并在 Linux 资产上执行（巡检、部署等），执行过程实时显示</p>
+
+    <div class="form-row">
+      <label for="assetSelect">运维对象</label>
+      <select id="assetSelect">
+        <option value="">不指定（由 AI 根据指令选择）</option>
+        <option value="__all__">全部资产</option>
+        <!-- 由 JS 拉取 /api/assets 后填充 -->
+      </select>
+    </div>
+
+    <div class="input-row">
+      <input
+        type="text"
+        id="instruction"
+        placeholder="例如：做一次巡检 / 查看内存使用情况"
+        autocomplete="off"
+      />
+      <button type="button" class="btn btn-primary" id="submit">执行</button>
+    </div>
+
+    <div class="section result-hidden" id="commands-section">
+      <div class="section-title">执行过程</div>
+      <div class="section-body empty" id="commands">暂无执行记录</div>
+    </div>
+
+    <div class="section result-hidden" id="reply-section">
+      <div class="section-title">助手回复</div>
+      <div class="section-body empty" id="reply">等待执行后显示</div>
+    </div>
+  </div>
+
+  <script>
+    const instructionEl = document.getElementById("instruction");
+    const submitBtn = document.getElementById("submit");
+    const assetSelect = document.getElementById("assetSelect");
+    const commandsEl = document.getElementById("commands");
+    const replyEl = document.getElementById("reply");
+    const replySection = document.getElementById("reply-section");
+
+    let assetList = [];
+
+    async function loadAssets() {
+      try {
+        const res = await fetch("/api/assets");
+        const list = await res.json();
+        assetList = list || [];
+        const sel = assetSelect;
+        while (sel.options.length > 2) sel.remove(2);
+        assetList.forEach(a => {
+          const opt = document.createElement("option");
+          opt.value = a.name;
+          opt.textContent = a.name + " (" + a.host + ")";
+          sel.appendChild(opt);
+        });
+      } catch (_) {}
+    }
+    loadAssets();
+
+    function setLoading(loading) {
+      submitBtn.disabled = loading;
+      if (loading) document.body.classList.add("loading");
+      else document.body.classList.remove("loading");
+    }
+
+    function showError(msg) {
+      replyEl.textContent = msg;
+      replyEl.classList.remove("empty");
+      replySection.classList.add("error");
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    /** 命令开始：立即显示「执行中…」（顺序与后端一致，用第一个 pending 匹配结果） */
+    function appendCommandStart(asset_name, command) {
+      commandsEl.classList.remove("empty");
+      const block = document.createElement("div");
+      block.className = "cmd-block pending";
+      block.innerHTML = `
+        <div class="asset">🖥 ${escapeHtml(asset_name)}</div>
+        <div class="cmd">$ ${escapeHtml(command)}</div>
+        <div class="result">执行中…</div>
+      `;
+      commandsEl.appendChild(block);
+      block.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    /** 命令结束：更新当前第一个「执行中」块为实际结果 */
+    function updateCommandResult(c) {
+      const block = commandsEl.querySelector(".cmd-block.pending");
+      if (!block) return;
+      const resultEl = block.querySelector(".result");
+      if (resultEl) {
+        resultEl.textContent = c.result;
+        block.classList.remove("pending");
+      }
+      block.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    /** 解析 SSE 流：按事件块（双换行）处理，避免长 data 被分片截断 */
+    async function consumeSSE(res, onEvent) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+
+        for (const block of blocks) {
+          let eventType = null;
+          let dataStr = null;
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) eventType = line.slice(6).trim();
+            else if (line.startsWith("data:")) dataStr = line.slice(5);
+          }
+          if (eventType && dataStr != null) {
+            try {
+              const data = JSON.parse(dataStr);
+              onEvent(eventType, data);
+            } catch (_) {}
+          }
+        }
+      }
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      const instruction = instructionEl.value.trim();
+      if (!instruction) return;
+
+      document.getElementById("commands-section").classList.remove("result-hidden");
+      document.getElementById("reply-section").classList.remove("result-hidden");
+
+      setLoading(true);
+      commandsEl.innerHTML = "正在执行…";
+      commandsEl.classList.remove("empty");
+      replyEl.textContent = "等待中…";
+      replyEl.classList.remove("empty");
+      replySection.classList.remove("error");
+
+      const selValue = assetSelect.value;
+      let asset_names = null;
+      if (selValue === "__all__" && assetList.length) asset_names = assetList.map(a => a.name);
+      else if (selValue && selValue !== "__all__") asset_names = [selValue];
+
+      try {
+        const res = await fetch("/api/run/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instruction, asset_names }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showError(data.detail || res.statusText || "请求失败");
+          commandsEl.innerHTML = "暂无执行记录";
+          commandsEl.classList.add("empty");
+          return;
+        }
+
+        commandsEl.innerHTML = "";
+
+        await consumeSSE(res, (eventType, data) => {
+          if (eventType === "command_start") {
+            appendCommandStart(data.asset_name, data.command);
+          } else if (eventType === "command") {
+            updateCommandResult(data);
+          } else if (eventType === "reply") {
+            replyEl.textContent = data.reply || "";
+            replyEl.classList.remove("empty");
+            replySection.classList.remove("error");
+          } else if (eventType === "error") {
+            showError(data.detail || "执行出错");
+          }
+        });
+
+        if (commandsEl.querySelectorAll(".cmd-block").length === 0) {
+          commandsEl.innerHTML = "暂无执行记录";
+          commandsEl.classList.add("empty");
+        }
+      } catch (e) {
+        showError("网络错误: " + e.message);
+        commandsEl.innerHTML = "暂无执行记录";
+        commandsEl.classList.add("empty");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    instructionEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitBtn.click();
+    });
+  </script>
+</body>
+</html>

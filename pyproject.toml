@@ -1,0 +1,26 @@
+[project]
+name = "ai-ops-assistant"
+version = "0.1.0"
+description = "Linux 智能运维助手 - 接入 DeepSeek，自动完成 Linux 部署、巡检等运维任务"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0.0",
+    "paramiko>=3.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.22.0",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[project.scripts]
+ai-ops-assistant = "ai_ops_assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

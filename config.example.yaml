@@ -1,0 +1,24 @@
+# Linux 智能运维助手 - 配置示例
+# 复制为 config.yaml 并填写真实信息，勿将 config.yaml 提交到版本库
+
+# DeepSeek API（必填）
+# 从 https://platform.deepseek.com/api_keys 获取
+deepseek:
+  api_key: "sk-xxxxxxxx"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+
+# Linux 资产列表
+assets:
+  - name: "web-server-01"
+    host: "192.168.1.10"
+    port: 22
+    username: "root"
+    # 认证二选一：password 或 private_key_path
+    password: ""           # 留空则使用密钥
+    private_key_path: "~/.ssh/id_rsa"
+  # - name: "db-server-01"
+  #   host: "192.168.1.20"
+  #   port: 22
+  #   username: "ubuntu"
+  #   private_key_path: "~/.ssh/id_rsa"

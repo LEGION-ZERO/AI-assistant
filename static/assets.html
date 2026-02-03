@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>资产管理 - Linux 智能运维助手</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --danger: #f85149;
+      --panel: #161b22;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: "Noto Sans SC", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    .nav {
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    .nav a { color: var(--muted); text-decoration: none; }
+    .nav a:hover, .nav a.active { color: var(--accent); }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #79b8ff; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    .btn-danger:hover { background: rgba(248,81,73,0.15); }
+    .section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .cell-actions { display: flex; gap: 0.5rem; }
+    .empty-tip { color: var(--muted); padding: 2rem; text-align: center; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1rem;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-title { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .modal-body { padding: 1.25rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.85rem; }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
+    }
+    .form-group input[readonly] { opacity: 0.8; }
+    .auth-options { display: flex; gap: 1rem; margin-bottom: 0.5rem; }
+    .auth-options label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text); }
+    .auth-options input[type=radio] { width: auto; }
+    .auth-panel { display: none; }
+    .auth-panel.show { display: block; }
+    .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem; }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); z-index: 101; }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+    .toast.success { border-color: var(--accent); color: var(--accent); }
+    .toast.hidden { display: none; }
+    .upload-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+    .upload-section h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text); }
+    .upload-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.75rem; }
+    .upload-row .form-group { margin-bottom: 0; }
+    .upload-row input[type="file"] {
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+    .upload-row input[type="text"].remote-path { min-width: 200px; max-width: 320px; }
+    .upload-status { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; }
+    .upload-status.success { color: var(--accent); }
+    .upload-status.error { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">首页</a>
+    <a href="/assets" class="active">资产管理</a>
+  </nav>
+  <div class="container">
+    <h1>资产管理</h1>
+    <p class="subtitle">管理 Linux 资产（服务器），用于 AI 巡检与部署。配置将写入 config.yaml。</p>
+
+    <div class="toolbar">
+      <span></span>
+      <button type="button" class="btn btn-primary" id="btnAdd">新增资产</button>
+    </div>
+
+    <div class="section">
+      <table>
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>主机</th>
+            <th>端口</th>
+            <th>用户名</th>
+            <th>认证</th>
+            <th style="width: 140px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="6" class="empty-tip">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="upload-section">
+      <h2>上传文件到资产</h2>
+      <div class="upload-row">
+        <div class="form-group">
+          <label for="uploadFile">选择文件</label>
+          <input type="file" id="uploadFile" />
+        </div>
+        <div class="form-group">
+          <label for="uploadAsset">目标资产</label>
+          <select id="uploadAsset">
+            <option value="">请选择资产</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="uploadRemotePath">远程路径（可选）</label>
+          <input type="text" id="uploadRemotePath" class="remote-path" placeholder="留空则传到 /tmp/ 目录（用原文件名）" />
+        </div>
+        <button type="button" class="btn btn-primary" id="uploadSubmit">上传</button>
+      </div>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal">
+      <div class="modal-title" id="modalTitle">新增资产</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>资产名称</label>
+          <input type="text" id="formName" placeholder="如 linux_222" />
+        </div>
+        <div class="form-group">
+          <label>主机</label>
+          <input type="text" id="formHost" placeholder="IP 或域名" />
+        </div>
+        <div class="form-group">
+          <label>端口</label>
+          <input type="number" id="formPort" value="22" min="1" max="65535" />
+        </div>
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="formUsername" placeholder="如 root" />
+        </div>
+        <div class="form-group">
+          <label>认证方式</label>
+          <div class="auth-options">
+            <label><input type="radio" name="auth" value="password" /> 密码</label>
+            <label><input type="radio" name="auth" value="key" checked /> 私钥路径</label>
+          </div>
+        </div>
+        <div class="form-group auth-panel" id="panelPassword">
+          <label>密码</label>
+          <input type="password" id="formPassword" placeholder="编辑时留空表示不修改" autocomplete="new-password" />
+        </div>
+        <div class="form-group auth-panel show" id="panelKey">
+          <label>私钥路径</label>
+          <input type="text" id="formKey" placeholder="如 ~/.ssh/id_rsa" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="btnSubmit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script>
+    const tbody = document.getElementById("tbody");
+    const modal = document.getElementById("modal");
+    const modalTitle = document.getElementById("modalTitle");
+    const formName = document.getElementById("formName");
+    const formHost = document.getElementById("formHost");
+    const formPort = document.getElementById("formPort");
+    const formUsername = document.getElementById("formUsername");
+    const formPassword = document.getElementById("formPassword");
+    const formKey = document.getElementById("formKey");
+    const panelPassword = document.getElementById("panelPassword");
+    const panelKey = document.getElementById("panelKey");
+    const btnAdd = document.getElementById("btnAdd");
+    const btnCancel = document.getElementById("btnCancel");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const toast = document.getElementById("toast");
+
+    let editingName = null;
+
+    function showToast(msg, type) {
+      toast.textContent = msg;
+      toast.className = "toast " + (type || "success");
+      toast.classList.remove("hidden");
+      setTimeout(() => toast.classList.add("hidden"), 2500);
+    }
+
+    const uploadFileEl = document.getElementById("uploadFile");
+    const uploadAssetEl = document.getElementById("uploadAsset");
+    const uploadRemotePathEl = document.getElementById("uploadRemotePath");
+    const uploadSubmitBtn = document.getElementById("uploadSubmit");
+    const uploadStatusEl = document.getElementById("uploadStatus");
+
+    async function loadAssets() {
+      try {
+        const res = await fetch("/api/assets");
+        const list = await res.json();
+        if (!list || list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-tip">暂无资产，点击「新增资产」添加</td></tr>';
+          while (uploadAssetEl.options.length > 1) uploadAssetEl.remove(1);
+          return;
+        }
+        tbody.innerHTML = list.map(a => `
+          <tr>
+            <td><strong>${escapeHtml(a.name)}</strong></td>
+            <td>${escapeHtml(a.host)}</td>
+            <td>${a.port}</td>
+            <td>${escapeHtml(a.username)}</td>
+            <td>${a.auth_type === "password" ? "密码" : "私钥"}</td>
+            <td>
+              <div class="cell-actions">
+                <button type="button" class="btn btn-ghost btn-edit" data-name="${escapeAttr(a.name)}">编辑</button>
+                <button type="button" class="btn btn-danger btn-del" data-name="${escapeAttr(a.name)}">删除</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+        tbody.querySelectorAll(".btn-edit").forEach(el => el.addEventListener("click", () => openEdit(el.dataset.name)));
+        tbody.querySelectorAll(".btn-del").forEach(el => el.addEventListener("click", () => doDelete(el.dataset.name)));
+        while (uploadAssetEl.options.length > 1) uploadAssetEl.remove(1);
+        list.forEach(a => {
+          const opt = document.createElement("option");
+          opt.value = a.name;
+          opt.textContent = a.name + " (" + a.host + ")";
+          uploadAssetEl.appendChild(opt);
+        });
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-tip">加载失败: ' + escapeHtml(e.message) + '</td></tr>';
+      }
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function openAdd() {
+      editingName = null;
+      modalTitle.textContent = "新增资产";
+      formName.value = "";
+      formName.readOnly = false;
+      formHost.value = "";
+      formPort.value = "22";
+      formUsername.value = "";
+      formPassword.value = "";
+      formKey.value = "";
+      document.querySelector('input[name="auth"][value="key"]').checked = true;
+      panelPassword.classList.remove("show");
+      panelKey.classList.add("show");
+      modal.classList.remove("hidden");
+    }
+
+    async function openEdit(name) {
+      try {
+        const res = await fetch("/api/assets/" + encodeURIComponent(name));
+        const a = await res.json();
+        if (!res.ok) throw new Error(a.detail || "加载失败");
+        editingName = a.name;
+        modalTitle.textContent = "编辑资产";
+        formName.value = a.name;
+        formName.readOnly = true;
+        formHost.value = a.host;
+        formPort.value = String(a.port);
+        formUsername.value = a.username;
+        formPassword.value = "";
+        formKey.value = a.private_key_path || "";
+        const auth = a.auth_type === "password" ? "password" : "key";
+        document.querySelector('input[name="auth"][value="' + auth + '"]').checked = true;
+        panelPassword.classList.toggle("show", auth === "password");
+        panelKey.classList.toggle("show", auth === "key");
+        modal.classList.remove("hidden");
+      } catch (e) {
+        showToast(e.message || "加载失败", "error");
+      }
+    }
+
+    document.querySelectorAll('input[name="auth"]').forEach(radio => {
+      radio.addEventListener("change", () => {
+        const isKey = document.querySelector('input[name="auth"]:checked').value === "key";
+        panelPassword.classList.toggle("show", !isKey);
+        panelKey.classList.toggle("show", isKey);
+      });
+    });
+
+    btnCancel.addEventListener("click", () => modal.classList.add("hidden"));
+    modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
+
+    async function doSubmit() {
+      const name = formName.value.trim();
+      const host = formHost.value.trim();
+      const port = parseInt(formPort.value, 10) || 22;
+      const username = formUsername.value.trim();
+      const auth = document.querySelector('input[name="auth"]:checked').value;
+      const password = auth === "password" ? formPassword.value : null;
+      const private_key_path = auth === "key" ? (formKey.value.trim() || null) : null;
+
+      if (!name) { showToast("请填写资产名称", "error"); return; }
+      if (!host) { showToast("请填写主机", "error"); return; }
+      if (!username) { showToast("请填写用户名", "error"); return; }
+      if (!editingName && !password && !private_key_path) { showToast("请填写密码或私钥路径", "error"); return; }
+      if (editingName && auth === "key" && !private_key_path) { showToast("请填写私钥路径", "error"); return; }
+
+      try {
+        if (editingName) {
+          const body = { host, port, username };
+          if (auth === "password") {
+            if (password) body.password = password;
+            // 密码留空则不传，后端保留原密码
+          } else {
+            body.private_key_path = private_key_path || "";
+            body.password = "";  // 改为密钥时清空密码
+          }
+          const res = await fetch("/api/assets/" + encodeURIComponent(editingName), {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || res.statusText);
+          showToast("已更新");
+        } else {
+          const res = await fetch("/api/assets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name,
+              host,
+              port,
+              username,
+              password: password || undefined,
+              private_key_path: private_key_path || undefined,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || res.statusText);
+          showToast("已添加");
+        }
+        modal.classList.add("hidden");
+        loadAssets();
+      } catch (e) {
+        showToast(e.message || "保存失败", "error");
+      }
+    }
+
+    async function doDelete(name) {
+      if (!confirm("确定删除资产「" + name + "」？")) return;
+      try {
+        const res = await fetch("/api/assets/" + encodeURIComponent(name), { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        showToast("已删除");
+        loadAssets();
+      } catch (e) {
+        showToast(e.message || "删除失败", "error");
+      }
+    }
+
+    btnAdd.addEventListener("click", openAdd);
+    btnSubmit.addEventListener("click", doSubmit);
+
+    uploadSubmitBtn.addEventListener("click", async () => {
+      const file = uploadFileEl.files && uploadFileEl.files[0];
+      const assetName = uploadAssetEl.value && uploadAssetEl.value.trim();
+      const remotePath = uploadRemotePathEl.value && uploadRemotePathEl.value.trim() || undefined;
+      uploadStatusEl.textContent = "";
+      uploadStatusEl.className = "upload-status";
+      if (!file) {
+        uploadStatusEl.textContent = "请选择要上传的文件";
+        uploadStatusEl.classList.add("error");
+        return;
+      }
+      if (!assetName) {
+        uploadStatusEl.textContent = "请选择目标资产";
+        uploadStatusEl.classList.add("error");
+        return;
+      }
+      uploadSubmitBtn.disabled = true;
+      uploadStatusEl.textContent = "上传中…";
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("asset_name", assetName);
+        if (remotePath) form.append("remote_path", remotePath);
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          uploadStatusEl.textContent = data.message || "上传成功";
+          uploadStatusEl.classList.add("success");
+          uploadFileEl.value = "";
+        } else {
+          uploadStatusEl.textContent = data.detail || res.statusText || "上传失败";
+          uploadStatusEl.classList.add("error");
+        }
+      } catch (e) {
+        uploadStatusEl.textContent = "网络错误: " + e.message;
+        uploadStatusEl.classList.add("error");
+      } finally {
+        uploadSubmitBtn.disabled = false;
+      }
+    });
+
+    uploadFileEl.addEventListener("change", () => {
+      if (!uploadRemotePathEl.value && uploadFileEl.files && uploadFileEl.files[0])
+        uploadRemotePathEl.placeholder = "留空则用: /tmp/" + (uploadFileEl.files[0].name || "原文件名");
+    });
+
+    loadAssets();
+  </script>
+</body>
+</html>

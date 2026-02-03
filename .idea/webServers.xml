@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="1303d6f4-7046-48ab-952f-1d7fb712baf7" name="192.168.1.204">
+        <fileTransfer rootFolder="/home/hulin/projects/AI-assistant" accessType="SFTP" host="192.168.1.204" port="22" sshConfigId="7e1f9f44-7e96-4dc2-9994-b4677b8b335c" sshConfig="root@192.168.1.204:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
