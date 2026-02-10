@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>关于 - Linux 智能运维助手</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --panel: #161b22;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: "Noto Sans SC", sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .nav {
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    .nav a { color: var(--muted); text-decoration: none; }
+    .nav a:hover, .nav a.active { color: var(--accent); }
+    .container { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+    .page-title { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text); }
+    .page-lead { color: var(--muted); font-size: 1rem; margin-bottom: 2rem; }
+    .section { margin-bottom: 2.5rem; }
+    .section h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 0 0 0.75rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section p { margin: 0 0 0.75rem; color: var(--text); font-size: 0.95rem; }
+    .section ul { margin: 0 0 0.75rem; padding-left: 1.25rem; }
+    .section li { margin-bottom: 0.35rem; }
+    .section .step { margin-bottom: 1rem; }
+    .section .step strong { color: var(--text); }
+    .section code, .section .inline-code {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.85em;
+      background: var(--surface);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+    .section .tip { background: rgba(88, 166, 255, 0.08); border-left: 3px solid var(--accent); padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.9rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">首页</a>
+    <a href="/assets">资产管理</a>
+    <a href="/about" class="active">关于</a>
+  </nav>
+  <div class="container">
+    <h1 class="page-title">Linux 智能运维助手</h1>
+    <p class="page-lead">选择运维对象（可选），输入自然语言指令，由 AI 规划并在 Linux 资产上执行；同一会话内可连续对话。</p>
+
+    <section class="section">
+      <h2>产品介绍</h2>
+      <p>用自然语言驱动 AI 在 Linux 资产上执行巡检/排障/部署等运维操作。</p>
+      <ul>
+        <li><strong>模型接入</strong>：DeepSeek / OpenAI 兼容接口。</li>
+        <li><strong>执行方式</strong>：SSH 登录资产执行命令，实时返回结果。</li>
+        <li><strong>会话</strong>：同一会话可连续对话，历史可回看。</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>入口</h2>
+      <ul>
+        <li><strong>资产管理</strong>：维护资产与资产组、上传文件。</li>
+        <li><strong>API 文档</strong>：<code>/docs</code></li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
