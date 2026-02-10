@@ -9,6 +9,12 @@
 - **Linux 执行**：通过 SSH 在配置的资产上执行命令，结果回传 AI 继续分析
 - **资产管理**：在 `config.yaml` 中配置多台 Linux 服务器（密码或密钥认证）
 
+<img width="1886" height="842" alt="image" src="https://github.com/user-attachments/assets/6ce09a77-ecbb-4da9-8a11-3498b57d89f6" />
+<img width="1920" height="875" alt="image" src="https://github.com/user-attachments/assets/b49d075f-1f5a-4410-a7b4-7dde8a63dcee" />
+
+
+
+
 ## 快速开始
 
 ### 1. 安装依赖
