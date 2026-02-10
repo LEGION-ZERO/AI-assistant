@@ -1,7 +1,7 @@
-"""配置加载：DeepSeek、资产列表。"""
+"""配置加载：DeepSeek、资产列表。资产可来自 YAML 或由调用方注入（如从数据库）。"""
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import yaml
 from pydantic import BaseModel, Field
@@ -55,7 +55,13 @@ def _config_path(path: Optional[Path] = None) -> Path:
     return path
 
 
-def load_config(path: Optional[Path] = None) -> AppConfig:
+def load_config(
+    path: Optional[Path] = None,
+    get_assets: Optional[Callable[[], list]] = None,
+) -> AppConfig:
+    """
+    加载配置。若提供 get_assets()，则用其返回值覆盖 YAML 中的 assets（用于从数据库加载资产）。
+    """
     p = _config_path(path)
     if not p.exists():
         raise FileNotFoundError(
@@ -65,6 +71,11 @@ def load_config(path: Optional[Path] = None) -> AppConfig:
     config = AppConfig(**raw)
     if not config.deepseek.api_key and os.environ.get("DEEPSEEK_API_KEY"):
         config.deepseek.api_key = os.environ["DEEPSEEK_API_KEY"]
+    if get_assets is not None:
+        try:
+            config.assets = [AssetConfig(**a) for a in get_assets()]
+        except Exception:
+            pass
     return config
 
 

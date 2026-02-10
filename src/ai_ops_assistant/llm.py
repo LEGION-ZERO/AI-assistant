@@ -298,7 +298,7 @@ SELF_CODED_SYSTEM = """你是一个 Linux 运维助手。用户会给出自然�
 3) 结束总结：{"action": "final", "message": "中文总结"}
 **禁止**在 asset 中写「资产名称」、在 command 中写「shell 命令」等占位符，必须用用户指定的资产名和具体命令。
 
-【final 的 message 要求】必须是针对用户指令和命令输出的 1～2 句专业总结（如：服务是否正常、有无异常、建议操作），禁止只回复「任务已完成」「已执行」等空话。例如用户要求「查看 docker 服务」且已执行 systemctl status docker，应总结 Docker 状态、是否有异常日志等。**当命令输出为列表/表格类数据**（如 getent passwd、用户与权限、docker ps、进程列表等）时，请用 **Markdown 表格** 汇总，**且表格中的每一行必须严格来自 <tool_result> 中的实际输出，禁止添加或臆造未在输出中出现的用户、容器、进程等条目**。示例：
+【final 的 message 要求】必须先理解用户问题的意图并直接作答，再视需要附上表格或数据；禁止只贴表格或数据而不回答用户问的是什么。例如：用户问「两台机哪个磁盘大」时，应先一句话答出谁更大、容量多少，再附表格；用户问「看看磁盘」时再给表格即可。其他场景：针对用户指令和命令输出做 1～2 句专业总结（如：服务是否正常、有无异常、建议操作），禁止只回复「任务已完成」「已执行」等空话。**当命令输出为列表/表格类数据**（如 getent passwd、df、docker ps 等）时，请用 **Markdown 表格** 汇总，**且表格中的每一行必须严格来自 <tool_result> 中的实际输出，禁止添加或臆造未在输出中出现的用户、容器、进程等条目**。示例：
 | 用户 | UID | Shell | 说明 |
 |------|-----|-------|------|
 | root | 0 | /bin/bash | 超级用户 |
@@ -590,10 +590,10 @@ def _parse_df_h_line(line: str) -> dict | None:
     return {"size": size, "used": used, "avail": avail, "use_pct": use_pct, "mount": mount}
 
 
-def _build_df_table_from_messages(messages: list[dict]) -> str | None:
-    """从 messages 中提取带 asset 的 <tool_result>，解析 df -h 输出，按资产生成汇总表。"""
-    rows: list[tuple[str, dict]] = []  # (asset, row_dict)
-    # 带 asset 的块：<tool_result asset="xxx">...</tool_result>
+def _build_df_table_from_messages(messages: list[dict]) -> tuple[str | None, list[tuple[str, dict]]]:
+    """从 messages 中提取带 asset 的 <tool_result>，解析 df -h 输出，按资产生成汇总表。
+    同一资产只保留一行（首次出现），避免多轮或重复 tool_result 导致表格重复。"""
+    seen: dict[str, tuple[str, dict]] = {}  # asset -> (asset, row)，按首次出现顺序
     pattern = re.compile(r'<tool_result\s+asset="([^"]+)"[^>]*>([\s\S]*?)</tool_result>', re.IGNORECASE)
     for msg in messages:
         if msg.get("role") != "user":
@@ -601,19 +601,33 @@ def _build_df_table_from_messages(messages: list[dict]) -> str | None:
         content = msg.get("content") or ""
         for m in pattern.finditer(content):
             asset, body = m.group(1).strip(), m.group(2)
+            if asset in seen:
+                continue
             if "df" not in body.lower() and "Filesystem" not in body and "文件系统" not in body:
                 continue
             for line in body.split("\n"):
                 row = _parse_df_h_line(line)
                 if row:
-                    rows.append((asset, row))
+                    seen[asset] = (asset, row)
                     break
+    rows = list(seen.values())
     if len(rows) < 2:
-        return None
+        return None, []
     table_lines = ["| 资产 | 总空间 | 已用 | 可用 | 使用率 | 挂载点 |", "|------|--------|------|------|--------|--------|"]
     for asset, r in rows:
         table_lines.append(f"| {asset} | {r['size']} | {r['used']} | {r['avail']} | {r['use_pct']} | {r['mount']} |")
-    return "\n".join(table_lines)
+    return "\n".join(table_lines), rows
+
+
+def _message_has_table(text: str) -> bool:
+    """回复中是否已包含 Markdown 表格，避免重复追加「已按资产汇总」表格。"""
+    if not (text or "").strip():
+        return False
+    t = text.strip()
+    if "|" not in t or t.count("|") < 4:
+        return False
+    lines = [ln for ln in t.split("\n") if "|" in ln]
+    return len(lines) >= 2
 
 
 def _looks_like_final_summary(content: str) -> bool:
@@ -635,6 +649,42 @@ def _looks_like_final_summary(content: str) -> bool:
     ):
         return True
     if "command" in c.lower() and ("result" in c.lower() or "output" in c.lower() or "执行" in c):
+        return True
+    return False
+
+
+def _looks_like_internal_reasoning(content: str) -> bool:
+    """检测内容是否为模型内部推理（规则、格式说明、示例数据等），不应作为最终回复展示给用户。"""
+    if not (content or "").strip() or len(content) < 200:
+        return False
+    c = content.strip()
+    reasoning_phrases = (
+        "严格遵守",
+        "指定格式",
+        "符合规则",
+        "只输出三种",
+        "禁止输出",
+        "tool_result",
+        "请替换示例数据",
+        "请替换示例",
+        "最终答案",
+        "action.*execute",
+        "action\": \"final\"",
+        '"action": "final"',
+        "表格中的每一行必须",
+        "禁止添加或臆造",
+        "必须严格来自",
+        "无 tool_call",
+        "只能提供一个 JSON",
+        "根据规则",
+        "根据上述规则",
+    )
+    if any(p in c for p in reasoning_phrases):
+        return True
+    # 长段中反复出现 JSON 结构说明或「步骤」类推理
+    if c.count("execute_command") >= 2 and c.count("final") >= 2 and len(c) > 800:
+        return True
+    if ("步骤" in c or "正确做法" in c) and ("action" in c or "JSON" in c) and len(c) > 500:
         return True
     return False
 
@@ -684,14 +734,22 @@ def chat_with_self_coded_fc(
                     len(c),
                     repr(c[:600] + ("..." if len(c) > 600 else "")),
                 )
-                # 模型有时直接给自然语言总结（如 ## Summarize\\n...），视为最终回复
-                if r >= 1 and c and _looks_like_final_summary(c):
+                # 模型有时直接给自然语言总结（如 ## Summarize\\n...），视为最终回复；若是规则/推理长文则不当作总结
+                if r >= 1 and c and _looks_like_final_summary(c) and not _looks_like_internal_reasoning(c):
                     logger.info("%schat_with_self_coded_fc 将自然语言总结当作最终回复", prefix)
                     return c
                 if nudge_count < 2:
                     nudge_count += 1
                     logger.info("%schat_with_self_coded_fc 未解析到有效 action，补发格式提醒（第%s次）", prefix, nudge_count)
-                    messages.append({"role": "assistant", "content": content})
+                    # 若模型返回了超长推理（如 R1 的 reasoning）而非 JSON，截断后再写入 messages，避免下一轮上下文爆炸导致继续输出长段或误操作
+                    content_to_append = content
+                    if len(content_to_append) > 2000:
+                        content_to_append = (
+                            content_to_append[:1500]
+                            + "\n\n(回复过长，请直接输出规定格式的 JSON 或 <tool_call>，不要输出长段推理。)"
+                        )
+                        logger.info("%schat_with_self_coded_fc 将过长回复截断后写入 messages 原长=%s", prefix, len(content))
+                    messages.append({"role": "assistant", "content": content_to_append})
                     nudge_content = (
                         "你刚才的回复不是规定的 action 格式。请只输出以下三种之一（可用 JSON 或 <tool_call>）：\n"
                         '1) {"action": "list_assets"} 或 <tool_call>{"name":"list_assets","arguments":{}}</tool_call>\n'
@@ -709,6 +767,10 @@ def chat_with_self_coded_fc(
                     len(c),
                     repr(c[:600] + ("..." if len(c) > 600 else "")),
                 )
+                # 若内容实为内部推理（规则、格式、示例等），不暴露给用户，返回简短提示
+                if _looks_like_internal_reasoning(content or ""):
+                    logger.info("%schat_with_self_coded_fc 检测到推理长文，返回简短兜底回复", prefix)
+                    return "未能解析到有效回复，请重试或换一种问法。"
                 return content or "模型未返回有效 JSON 动作。"
         act = action.get("action", "")
         messages.append({"role": "assistant", "content": content})
@@ -741,10 +803,19 @@ def chat_with_self_coded_fc(
                             logger.info("%schat_with_self_coded_fc 代码层面解析 getent passwd 生成表格 len=%s", prefix, len(final_msg))
                             break
             elif is_disk_df_query:
-                df_table = _build_df_table_from_messages(messages)
+                df_table, _ = _build_df_table_from_messages(messages)
                 if df_table:
-                    intro = "已按资产汇总磁盘使用情况（基于 df 命令输出）：\n\n"
-                    final_msg = intro + df_table
+                    table_block = "已按资产汇总磁盘使用情况（基于 df 命令输出）：\n\n" + df_table
+                    msg = (final_msg or "").strip()
+                    if not _is_final_message_fluff(final_msg) and len(msg) > 20:
+                        # 模型已带了表格时不再追加，避免出现两段相同数据的表格
+                        if _message_has_table(msg):
+                            final_msg = msg
+                            logger.info("%schat_with_self_coded_fc 模型回复已含表格，不再追加汇总表", prefix)
+                        else:
+                            final_msg = msg + "\n\n" + table_block
+                    else:
+                        final_msg = table_block
                     logger.info("%schat_with_self_coded_fc 代码层面解析 df 按资产生成表格 len=%s", prefix, len(final_msg))
             # 当本轮 content 实为长 reasoning（如 R1 只给 reasoning 无 content），且含表格/用户列表，而解析出的 message 很短时，优先采用长内容作为最终回复
             if (
@@ -761,7 +832,7 @@ def chat_with_self_coded_fc(
             if _is_final_message_fluff(final_msg):
                 # 补发一轮：要求根据命令输出和用户意图给出专业总结，避免只回复「任务已完成」
                 summary_nudge = (
-                    "请根据上述 <tool_result> 和用户指令，用 1～2 句话给出专业总结（如：服务/命令执行状态、是否异常、建议），不要只回复「任务已完成」或空话。若结果为用户列表、容器列表等可表格化的数据，请在 message 中用 Markdown 表格汇总，**表格中每一行必须来自 <tool_result> 中的实际输出，禁止添加未在输出中出现的用户/容器等**。示例：| 用户 | UID | Shell |\\n|------|-----|-------|\\n| root | 0 | /bin/bash |。只输出 {\"action\": \"final\", \"message\": \"你的总结\"}。"
+                    "请根据上述 <tool_result> 和用户指令，先理解用户问的是什么并直接回答（例如问「哪个大」就先答谁大、再附数据），再视需要附表格；不要只贴表格不回答问题。message 中表格的每一行必须来自 <tool_result> 实际输出。只输出 {\"action\": \"final\", \"message\": \"你的总结\"}。"
                 )
                 messages.append({"role": "user", "content": summary_nudge})
                 if on_turn:
@@ -790,7 +861,7 @@ def chat_with_self_coded_fc(
                             logger.info("%schat_with_self_coded_fc 补发一轮后采用长文本总结（非 JSON）", prefix)
                 # 若第一轮总结只得到 reasoning（长文本无 JSON），再补发一次极简提示只要一行 JSON
                 if _is_final_message_fluff(final_msg) and extra and len(extra) > 400 and not extra.strip().startswith("{"):
-                    short_nudge = '只回复一行 JSON，不要任何推理或解释：{"action": "final", "message": "根据上方 <tool_result> 写 1～2 句总结或表格，表格仅包含输出中实际出现的用户/容器，禁止臆造"}'
+                    short_nudge = '只回复一行 JSON：{"action": "final", "message": "先根据用户问题直接回答（如问哪个大就答谁大），再视需要附表格；表格仅包含 <tool_result> 中实际出现的数据"}'
                     messages.append({"role": "user", "content": short_nudge})
                     if on_turn:
                         on_turn("user", short_nudge)

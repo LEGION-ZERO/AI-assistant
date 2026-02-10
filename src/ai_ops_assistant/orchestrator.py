@@ -84,6 +84,28 @@ def _looks_dangerous_command(cmd: str) -> bool:
     return False
 
 
+# 模型在会话延续时有时会反复执行「echo "你上一条指令是：..."」等复述类命令，拦截后直接返回提示，避免多轮无效执行
+_ECHO_RESTATE_PATTERNS = (
+    "你上一条指令",
+    "你上一次问",
+    "你刚才的指令",
+    "用户刚才问",
+    "用户上一条",
+)
+
+
+def _is_echo_restate_command(cmd: str) -> bool:
+    """判断是否为仅用 echo 复述用户指令的无意义命令，此类命令不执行并返回固定提示。"""
+    s = (cmd or "").strip()
+    if not s.lower().startswith("echo"):
+        return False
+    # 检查是否包含复述类关键词（可能在引号内）
+    for phrase in _ECHO_RESTATE_PATTERNS:
+        if phrase in s:
+            return True
+    return False
+
+
 def _resolve_target_assets(config: AppConfig, instruction: str) -> tuple[Optional[list[str]], bool]:
     """
     返回 (资产列表 or None, 是否明确指定)：
@@ -232,11 +254,11 @@ def _run_no_tools_mode(
             )
 
         if on_command_start:
-            on_command_start(asset_name, cmd)
+            on_command_start(asset_name, cmd, getattr(asset, "host", None))
         logger.info("无工具模式: 执行 asset=%s cmd=%r", asset_name, cmd)
         result = execute_on_asset(asset, cmd)
         if on_command:
-            on_command(asset_name, cmd, result)
+            on_command(asset_name, cmd, result, getattr(asset, "host", None))
         logger.info("无工具模式: 执行完成 result_len=%s", len(result or ""))
 
         follow_up = (
@@ -256,6 +278,7 @@ def _run_no_tools_mode(
 def run_instruction(
     user_instruction: str,
     config_path: Optional[Path] = None,
+    config: Optional[AppConfig] = None,
     on_command: Optional[Callable[[str, str, str], None]] = None,
     on_command_start: Optional[Callable[[str, str], None]] = None,
     on_model_reply: Optional[Callable[[int, str], None]] = None,
@@ -263,7 +286,8 @@ def run_instruction(
     trace_id: Optional[str] = None,
     cancel_event: Optional[threading.Event] = None,
     interaction_log_path: Optional[Path] = None,
-) -> str:
+    initial_messages: Optional[list[dict]] = None,
+) -> tuple[str, Optional[list[dict]]]:
     """
     执行用户的一条自然语言指令。
     - on_command_start: 可选，在每条命令**开始执行前**调用 (asset_name, command)，用于实时展示「执行中」
@@ -271,13 +295,16 @@ def run_instruction(
     - on_model_reply: 可选，无工具模式每轮模型输出后调用 (round_index, content)，用于日志/前端展示「模型思考」
     - asset_names: 可选，指定本次仅对这些资产执行，AI 不会使用其他资产
     - interaction_log_path: 可选，若指定则把每轮 assistant/user 交互追加到该文件，便于排查中间过程
-    返回 AI 的最终回复文本。
+    - initial_messages: 可选，会话延续时的历史消息（含 system + 多轮 user/assistant），最后一条约为本次用户输入
+    - config: 可选，若提供则直接使用该配置（含 assets），否则从 config_path 加载
+    返回 (AI 的最终回复文本, 更新后的 messages 列表；无工具模式或异常时第二项为 None)。
     """
     if trace_id:
         logger.info("[%s] run_instruction 开始 instruction=%r asset_names=%s", trace_id, user_instruction, asset_names)
     else:
         logger.info("run_instruction 开始 instruction=%r asset_names=%s", user_instruction, asset_names)
-    config = load_config(config_path)
+    if config is None:
+        config = load_config(config_path)
     # 兼容本地 OpenAI 接口（如 Ollama）：即使不填 api_key 也可运行
     # 若 base_url 仍是 DeepSeek 官方且未配置 key，则给出明确提示
     if (not (config.deepseek.api_key or "").strip()) and (config.deepseek.base_url or "").strip() in (
@@ -300,15 +327,18 @@ def run_instruction(
         if cancel_event and cancel_event.is_set():
             return "已按用户请求停止。"
         command = (command or "").replace("\\n", "\n").replace("\\t", "\t")
+        if _is_echo_restate_command(command):
+            logger.warning("%s拦截复述类 echo 命令 cmd=%r", (f"[{trace_id}] " if trace_id else ""), command[:80])
+            return "请不要执行仅用于复述用户指令的 echo 命令。请直接执行实际运维命令（如 df -h、free 等）完成用户需求，或给出最终总结。"
         logger.info("%s调用 execute_command asset=%s cmd=%r", (f"[{trace_id}] " if trace_id else ""), asset_name, command)
-        if on_command_start:
-            on_command_start(asset_name, command)
         asset = get_asset_by_name(config, asset_name)
         if not asset:
             return f"未找到资产 '{asset_name}'。可用资产：\n{list_assets_display(config)}"
+        if on_command_start:
+            on_command_start(asset_name, command, getattr(asset, "host", None))
         result = execute_on_asset(asset, command)
         if on_command:
-            on_command(asset_name, command, result)
+            on_command(asset_name, command, result, getattr(asset, "host", None))
         logger.info("%sexecute_command 完成 asset=%s cmd=%r result_len=%s", (f"[{trace_id}] " if trace_id else ""), asset_name, command, len(result or ""))
         return result
 
@@ -340,10 +370,13 @@ def run_instruction(
         system_content = SYSTEM_PROMPT + PROMPT_TOOLS_INSTRUCTION
     if getattr(config.deepseek, "use_self_coded_fc", False):
         system_content = SELF_CODED_SYSTEM
-    messages = [
-        {"role": "system", "content": system_content},
-        {"role": "user", "content": effective_instruction},
-    ]
+    if initial_messages:
+        messages = list(initial_messages)
+    else:
+        messages = [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": effective_instruction},
+        ]
 
     def _write_interaction(path: Path, line: str) -> None:
         try:
@@ -417,25 +450,33 @@ def run_instruction(
                     return _wrap_tool_result(
                         "请使用用户已选定的资产名称（如 linux_222）和具体命令（如 getent passwd），不要使用占位符「资产名称」「shell 命令」。"
                     ), False
+                # 拦截「echo 复述用户指令」类命令，避免会话延续时模型多轮无效执行
+                if _is_echo_restate_command(command):
+                    logger.warning("%s拦截复述类 echo 命令 cmd=%r", (f"[{trace_id}] " if trace_id else ""), command[:80])
+                    return _wrap_tool_result(
+                        "请不要执行仅用于复述用户指令的 echo 命令。请直接执行实际运维命令（如 df -h、free、ps 等）完成用户需求，或若已具备足够信息则输出 {\"action\": \"final\", \"message\": \"总结\"} 结束。"
+                    ), False
                 if use_mcp and mcp_url:
+                    _asset = get_asset_by_name(config, asset_name)
+                    _host = getattr(_asset, "host", None) if _asset else None
                     if on_command_start:
-                        on_command_start(asset_name, command)
+                        on_command_start(asset_name, command, _host)
                     result = _call_mcp_tool(
                         mcp_url, "execute_command",
                         {"asset_name": asset_name, "command": command},
                         timeout=120,
                     )
                     if on_command:
-                        on_command(asset_name, command, result)
+                        on_command(asset_name, command, result, _host)
                     return _wrap_tool_result(result or "(无输出)", asset=asset_name), False
                 asset = get_asset_by_name(config, asset_name)
                 if not asset:
                     return _wrap_tool_result(f"未找到资产 '{asset_name}'。可用资产：\n{list_assets_display(config)}"), False
                 if on_command_start:
-                    on_command_start(asset_name, command)
+                    on_command_start(asset_name, command, getattr(asset, "host", None))
                 result = execute_on_asset(asset, command)
                 if on_command:
-                    on_command(asset_name, command, result)
+                    on_command(asset_name, command, result, getattr(asset, "host", None))
                 return _wrap_tool_result(result or "(无输出)", asset=asset_name), False
             if act == "final":
                 return (action.get("message") or "").strip(), True
@@ -452,7 +493,7 @@ def run_instruction(
         logger.info("%srun_instruction 完成 reply_len=%s", (f"[{trace_id}] " if trace_id else ""), len(final_reply or ""))
         if interaction_log_path:
             _write_interaction(interaction_log_path, f"--- final_reply ---\n{final_reply or ''}\n")
-        return final_reply
+        return final_reply, messages
 
     if getattr(config.deepseek, "use_prompt_tools", False):
         logger.info("%s使用提示词函数调用（不依赖 API tool_calls）", (f"[{trace_id}] " if trace_id else ""))
@@ -469,10 +510,10 @@ def run_instruction(
         logger.info("%srun_instruction 完成 reply_len=%s", (f"[{trace_id}] " if trace_id else ""), len(final_reply or ""))
         if interaction_log_path:
             _write_interaction(interaction_log_path, f"--- final_reply ---\n{final_reply or ''}\n")
-        return final_reply
+        return final_reply, messages
 
     try:
-        final_reply, _ = chat_with_tools(
+        final_reply, messages = chat_with_tools(
             client,
             config.deepseek.model,
             messages,
@@ -484,7 +525,7 @@ def run_instruction(
         logger.info("%srun_instruction 完成 reply_len=%s", (f"[{trace_id}] " if trace_id else ""), len(final_reply or ""))
         if interaction_log_path:
             _write_interaction(interaction_log_path, f"--- final_reply ---\n{final_reply or ''}\n")
-        return final_reply
+        return final_reply, messages
     except Exception as e:
         err_str = str(e)
         # Ollama 部分模型会报 “does not support tools”；vLLM 会返回 400 “Extra inputs are not permitted” (tools/tool_choice)
@@ -506,5 +547,5 @@ def run_instruction(
             )
             if interaction_log_path:
                 _write_interaction(interaction_log_path, "--- final_reply (无工具模式) ---\n" + (final_reply or "") + "\n")
-            return final_reply
+            return final_reply, None
         raise

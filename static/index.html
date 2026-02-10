@@ -27,26 +27,224 @@
       color: var(--text);
       line-height: 1.6;
     }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      min-height: 100vh;
     }
-    h1 {
-      font-size: 1.5rem;
+    .sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: linear-gradient(180deg, var(--panel) 0%, rgba(22, 27, 34, 0.97) 100%);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sidebar-header {
+      height: 52px;
+      min-height: 52px;
+      padding: 0 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 0.95rem;
       font-weight: 600;
-      margin-bottom: 0.5rem;
       color: var(--text);
+      letter-spacing: 0.02em;
     }
-    .subtitle {
+    .btn-new-session {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--accent);
+      background: rgba(88, 166, 255, 0.12);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-new-session:hover {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: var(--accent);
+    }
+    .sidebar-list-label {
+      padding: 0.6rem 1rem 0.25rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
       color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 1.5rem;
+    }
+    .sidebar-sessions {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.25rem 0.5rem 0.5rem;
+      min-height: 120px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .sidebar-sessions::-webkit-scrollbar { width: 6px; }
+    .sidebar-sessions::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-sessions::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .sidebar-session-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      padding: 0.65rem 0.75rem;
+      margin-bottom: 0.25rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .sidebar-session-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .sidebar-session-item:hover .sidebar-session-delete {
+      opacity: 1;
+    }
+    .sidebar-session-item.active {
+      background: rgba(88, 166, 255, 0.12);
+      border-color: rgba(88, 166, 255, 0.35);
+    }
+    .sidebar-session-item.active .sidebar-session-delete {
+      opacity: 1;
+    }
+    .sidebar-session-item .session-title {
+      font-size: 0.85rem;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-right: 1.5rem;
+    }
+    .sidebar-session-item .session-time {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .sidebar-session-delete {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 4px;
+      background: rgba(248, 81, 73, 0.2);
+      color: #f85149;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .sidebar-session-delete:hover {
+      background: rgba(248, 81, 73, 0.4);
+    }
+    .sidebar-turns-wrap {
+      border-top: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      max-height: 220px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .sidebar-turns-wrap.empty { display: none; }
+    .sidebar-turns-wrap .turns-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .sidebar-turn {
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+      padding-left: 0.6rem;
+      border-left: 2px solid var(--border);
+      color: var(--muted);
+    }
+    .sidebar-turn b { color: var(--text); font-weight: 500; }
+    .sidebar-empty-hint {
+      padding: 1.25rem 0.75rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .sidebar-toggle {
+      display: none;
+      position: fixed;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      width: 28px;
+      height: 56px;
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+      background: var(--panel);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+    }
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+    .container {
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      padding: 0 1.25rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
     .input-row {
       display: flex;
       gap: 0.75rem;
       margin-bottom: 1.5rem;
+    }
+    .asset-select-inline {
+      width: 260px;
+      max-width: 320px;
+      padding: 0.75rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .asset-select-inline:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
     }
     .input-row input {
       flex: 1;
@@ -86,6 +284,8 @@
     }
     .btn-danger:hover { background: #f85149; }
     .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
     .section {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -126,18 +326,21 @@
       border-color: #f85149;
       color: #f85149;
     }
-    .loading { opacity: 0.7; pointer-events: none; }
-    .loading #stopBtn { pointer-events: auto; }
+    /* 执行中不锁死整页：仅轻微提示 */
+    .loading { opacity: 0.85; }
     .cmd-block.pending .result { color: var(--muted); }
     .cmd-block.pending .result::after { content: " ▋"; animation: blink 0.8s step-end infinite; }
     @keyframes blink { 50% { opacity: 0; } }
     #commands:not(.empty) { max-height: 50vh; overflow-y: auto; }
     .nav {
+      height: 52px;
+      min-height: 52px;
       border-bottom: 1px solid var(--border);
-      padding: 0.75rem 1.5rem;
+      padding: 0 1.5rem;
       display: flex;
       gap: 1.5rem;
       align-items: center;
+      flex-shrink: 0;
     }
     .nav a { color: var(--muted); text-decoration: none; }
     .nav a:hover, .nav a.active { color: var(--accent); }
@@ -170,51 +373,242 @@
       font-family: inherit;
       font-size: 0.95rem;
     }
+    .auth-options { display: flex; gap: 1rem; margin-bottom: 0.5rem; }
+    .auth-options label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text); }
+    .auth-options input[type=radio] { width: auto; }
+    .auth-panel { display: none; }
+    .auth-panel.show { display: block; }
     .input-row { align-items: flex-end; }
+    .chat-input-bar {
+      flex-shrink: 0;
+      padding: 0.75rem 0 1.25rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      margin: 0 -1.25rem 0;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+    }
+    .chat-panel {
+      flex: 1;
+      min-height: 0;
+      margin: 0.5rem 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow-y: auto;
+    }
+    .chat-empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .chat-panel:not(.empty) .chat-empty { display: none; }
+    .chat-turns { padding: 0.5rem 0; }
+    .chat-turn {
+      margin-bottom: 1rem;
+      padding: 0 1rem 0.5rem;
+    }
+    .chat-msg {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+      align-items: flex-start;
+    }
+    .chat-msg .chat-label {
+      flex-shrink: 0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      width: 3em;
+    }
+    .chat-msg.user .chat-label { color: var(--accent); }
+    .chat-msg .chat-content {
+      flex: 1;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .chat-msg.user .chat-content {
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.25);
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+    }
+    .chat-msg.assistant .chat-content {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+    }
+    .chat-commands-wrap {
+      margin: 0.5rem 0 0.5rem 3.75rem;
+      font-size: 0.85rem;
+    }
+    .chat-commands-wrap .chat-label {
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    .chat-cmd-block {
+      border-left: 3px solid var(--accent);
+      padding-left: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .chat-cmd-block .asset { font-weight: 600; color: var(--accent); }
+    .chat-cmd-block .cmd { font-family: "JetBrains Mono", monospace; color: var(--muted); font-size: 0.8rem; margin: 0.2rem 0; }
+    .chat-cmd-block .result { font-family: "JetBrains Mono", monospace; font-size: 0.8rem; white-space: pre-wrap; }
+    .chat-cmd-block.pending .result { color: var(--muted); }
+    .chat-cmd-block.pending .result::after { content: " ▋"; animation: blink 0.8s step-end infinite; }
+    .chat-current-run .chat-turn { border: 1px dashed var(--border); border-radius: 8px; padding: 0.75rem 1rem; background: rgba(88,166,255,0.05); }
+    .chat-msg.assistant.error .chat-content { background: rgba(248, 81, 73, 0.1); border-color: rgba(248, 81, 73, 0.4); color: #f85149; }
+    .chat-content .reply-table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.9rem; }
+    .chat-content .reply-table th, .chat-content .reply-table td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+    /* 删除会话确认弹窗 */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .modal {
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      width: 360px;
+      max-width: calc(100% - 2rem);
+      padding: 1rem 1.25rem 1.1rem;
+    }
+    .modal-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .modal-body {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.9rem;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.6rem;
+    }
+    .modal-actions .btn {
+      padding: 0.45rem 0.9rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .modal-actions .btn-cancel {
+      background: transparent;
+      color: var(--muted);
+    }
+    .modal-actions .btn-cancel:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .modal-actions .btn-danger {
+      background: rgba(248, 81, 73, 0.15);
+      color: #f85149;
+      border-color: rgba(248, 81, 73, 0.6);
+    }
+    .modal-actions .btn-danger:hover {
+      background: rgba(248, 81, 73, 0.28);
+      border-color: #f85149;
+    }
+    .chat-content .reply-table th { background: var(--panel); color: var(--accent); font-weight: 600; }
+    .chat-content .reply-table tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 90;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+      }
+      .sidebar.collapsed {
+        transform: translateX(-100%);
+        box-shadow: none;
+      }
+      .sidebar-toggle { display: flex; }
+      .main-wrap { margin-left: 0; }
+    }
+    @media (max-width: 900px) {
+      .asset-select-inline { width: 180px; }
+    }
   </style>
 </head>
 <body>
-  <nav class="nav">
-    <a href="/" class="active">首页</a>
-    <a href="/assets">资产管理</a>
-  </nav>
-  <div class="container">
-    <h1>Linux 智能运维助手</h1>
-    <p class="subtitle">选择运维对象（可选），输入自然语言指令，由 AI 规划并在 Linux 资产上执行（巡检、部署等），执行过程实时显示</p>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>会话</h2>
+        <button type="button" class="btn-new-session" id="newSessionBtn" title="开始新会话">+ 新会话</button>
+      </div>
+      <div class="sidebar-list-label">历史会话</div>
+      <div class="sidebar-sessions" id="historyList">
+        <div class="sidebar-empty-hint" id="sidebarEmptyHint">暂无会话<br>执行指令后将自动创建</div>
+      </div>
+      <div class="sidebar-turns-wrap empty" id="sessionTurnsWrap">
+        <div class="turns-title">本会话历史</div>
+        <div id="sessionTurns"></div>
+      </div>
+    </aside>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="展开/收起侧边栏">◀</button>
+    <div class="main-wrap">
+      <nav class="nav">
+        <a href="/" class="active">首页</a>
+        <a href="/assets">资产管理</a>
+        <a href="/about">关于</a>
+      </nav>
+      <div class="container">
+        <div class="chat-panel" id="chatPanel">
+          <div class="chat-empty" id="chatEmpty">选择左侧会话查看历史，或输入指令执行后在此显示对话</div>
+          <div class="chat-turns" id="chatTurns"></div>
+          <div class="chat-current-run result-hidden" id="currentRunWrap">
+            <div class="chat-turn">
+              <div class="chat-msg user"><span class="chat-label">我</span><div class="chat-content" id="currentRunUser"></div></div>
+              <div class="chat-commands-wrap"><div class="chat-label">执行过程</div><div class="chat-commands" id="currentRunCommands"></div></div>
+              <div class="chat-msg assistant"><span class="chat-label">助手</span><div class="chat-content" id="currentRunReply">等待中…</div></div>
+            </div>
+          </div>
+        </div>
 
-    <div class="form-row">
-      <label for="assetSelect">运维对象</label>
-      <select id="assetSelect">
-        <option value="">不指定（由 AI 根据指令选择）</option>
-        <option value="__all__">全部资产</option>
-        <!-- 由 JS 拉取 /api/assets 后填充 -->
-      </select>
+        <div class="chat-input-bar">
+          <div class="input-row">
+            <select id="assetSelect" class="asset-select-inline" aria-label="运维对象">
+              <option value="">不指定（由 AI 根据指令选择）</option>
+              <option value="__all__">全部资产</option>
+            </select>
+            <input
+              type="text"
+              id="instruction"
+              placeholder="例如：做一次巡检 / 查看内存使用情况"
+              autocomplete="off"
+            />
+            <button type="button" class="btn btn-primary" id="submit">执行</button>
+            <button type="button" class="btn btn-danger" id="stopBtn" disabled title="停止当前执行（下一轮命令前生效）">停止</button>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <div class="input-row">
-      <input
-        type="text"
-        id="instruction"
-        placeholder="例如：做一次巡检 / 查看内存使用情况"
-        autocomplete="off"
-      />
-      <button type="button" class="btn btn-primary" id="submit">执行</button>
-      <button type="button" class="btn btn-danger" id="stopBtn" disabled title="停止当前执行（下一轮命令前生效）">停止</button>
-    </div>
-
-    <div class="section result-hidden" id="commands-section">
-      <div class="section-title">执行过程</div>
-      <div class="section-body empty" id="commands">暂无执行记录</div>
-    </div>
-
-    <div class="section result-hidden" id="model-thinking-section">
-      <div class="section-title">模型思考 / 每轮输出</div>
-      <div class="section-body empty" id="model-thinking">无（自研 Agent/原生 tools 模式下此处不显示）</div>
-    </div>
-
-    <div class="section result-hidden" id="reply-section">
-      <div class="section-title">助手回复</div>
-      <div class="section-body empty" id="reply">等待执行后显示</div>
+    <!-- 删除会话确认弹窗 -->
+    <div class="modal-backdrop" id="deleteSessionModal" style="display:none;">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteSessionTitle">
+        <div class="modal-title" id="deleteSessionTitle">删除会话</div>
+        <div class="modal-body" id="deleteSessionBody">确定要删除该会话吗？此操作不可撤销。</div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="cancelDeleteSessionBtn">取消</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteSessionBtn">删除</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -223,47 +617,385 @@
     const submitBtn = document.getElementById("submit");
     const stopBtn = document.getElementById("stopBtn");
     const assetSelect = document.getElementById("assetSelect");
-    const commandsEl = document.getElementById("commands");
-    const modelThinkingEl = document.getElementById("model-thinking");
-    const modelThinkingSection = document.getElementById("model-thinking-section");
-    const replyEl = document.getElementById("reply");
-    const replySection = document.getElementById("reply-section");
+    const chatPanel = document.getElementById("chatPanel");
+    const chatEmpty = document.getElementById("chatEmpty");
+    const chatTurns = document.getElementById("chatTurns");
+    const currentRunWrap = document.getElementById("currentRunWrap");
+    const currentRunUser = document.getElementById("currentRunUser");
+    const currentRunCommands = document.getElementById("currentRunCommands");
+    const currentRunReply = document.getElementById("currentRunReply");
+    const newSessionBtn = document.getElementById("newSessionBtn");
+    const historyListEl = document.getElementById("historyList");
+    const sidebarEmptyHint = document.getElementById("sidebarEmptyHint");
+    const sessionTurnsWrap = document.getElementById("sessionTurnsWrap");
+    const sessionTurnsEl = document.getElementById("sessionTurns");
+    const sidebar = document.getElementById("sidebar");
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    const deleteSessionModal = document.getElementById("deleteSessionModal");
+    const cancelDeleteSessionBtn = document.getElementById("cancelDeleteSessionBtn");
+    const confirmDeleteSessionBtn = document.getElementById("confirmDeleteSessionBtn");
+    const deleteSessionBody = document.getElementById("deleteSessionBody");
+
+    let pendingDeleteSessionId = null;
 
     let assetList = [];
+    let treeData = { groups: [], ungrouped: [] };
+    let currentSessionId = null;
+    let sessionList = [];
+    const ASSET_SELECT_STORAGE_KEY = "ai_ops_asset_select_value";
 
-    async function loadAssets() {
+    function openDeleteSessionModal(sessionId, title) {
+      pendingDeleteSessionId = sessionId;
+      if (deleteSessionBody) {
+        const t = (title || "会话").slice(0, 40);
+        deleteSessionBody.textContent = `确定要删除「${t}」吗？此操作不可撤销。`;
+      }
+      if (deleteSessionModal) {
+        deleteSessionModal.style.display = "flex";
+      }
+    }
+
+    function closeDeleteSessionModal() {
+      pendingDeleteSessionId = null;
+      if (deleteSessionModal) {
+        deleteSessionModal.style.display = "none";
+      }
+    }
+
+    function restoreAssetSelectValue() {
+      if (!assetSelect) return;
+      let v = "";
       try {
-        const res = await fetch("/api/assets");
-        const list = await res.json();
-        assetList = list || [];
-        const sel = assetSelect;
-        while (sel.options.length > 2) sel.remove(2);
-        assetList.forEach(a => {
-          const opt = document.createElement("option");
-          opt.value = a.name;
-          opt.textContent = a.name + " (" + a.host + ")";
-          sel.appendChild(opt);
+        // 优先用当前会话专属的选择，其次退回全局默认
+        if (currentSessionId) {
+          v = localStorage.getItem(`${ASSET_SELECT_STORAGE_KEY}_${currentSessionId}`) || "";
+        }
+        if (!v) {
+          v = localStorage.getItem(ASSET_SELECT_STORAGE_KEY) || "";
+        }
+      } catch (_) {
+        v = "";
+      }
+      const exists = Array.from(assetSelect.options || []).some(o => o.value === v);
+      assetSelect.value = exists ? v : "";
+    }
+
+    // 运维对象选择持久化：总是保存全局；若已绑定会话则同时保存会话专属
+    if (assetSelect) {
+      assetSelect.addEventListener("change", () => {
+        const val = assetSelect.value || "";
+        try {
+          localStorage.setItem(ASSET_SELECT_STORAGE_KEY, val);
+          if (currentSessionId) {
+            localStorage.setItem(`${ASSET_SELECT_STORAGE_KEY}_${currentSessionId}`, val);
+          }
+        } catch (_) {}
+      });
+    }
+
+    async function loadAssetTree() {
+      try {
+        const listRes = await fetch("/api/assets?t=" + Date.now());
+        if (!listRes.ok) { assetList = []; } else {
+          const json = await listRes.json();
+          assetList = Array.isArray(json) ? json : [];
+        }
+      } catch (_) {
+        assetList = [];
+      }
+      try {
+        const treeRes = await fetch("/api/assets-tree");
+        if (treeRes.ok) {
+          const data = await treeRes.json();
+          treeData = data && typeof data === "object" ? data : { groups: [], ungrouped: [] };
+        } else {
+          treeData = { groups: [], ungrouped: [] };
+        }
+      } catch (_) {
+        treeData = { groups: [], ungrouped: [] };
+      }
+      fillAssetSelect();
+      restoreAssetSelectValue();
+    }
+
+    function fillAssetSelect() {
+      const sel = document.getElementById("assetSelect");
+      if (!sel) return;
+      while (sel.options.length > 2) sel.remove(2);
+      (treeData.groups || []).forEach(g => {
+        const opt = document.createElement("option");
+        opt.value = "__group__" + g.id;
+        opt.textContent = "组: " + (g.name || "") + " (" + (g.assets && g.assets.length ? g.assets.length + " 台" : "0") + ")";
+        sel.appendChild(opt);
+      });
+      var listToShow = Array.isArray(assetList) && assetList.length > 0 ? assetList : [];
+      if (listToShow.length === 0) {
+        var flat = [];
+        (treeData.groups || []).forEach(function(g) { (g.assets || []).forEach(function(a) { flat.push(a); }); });
+        (treeData.ungrouped || []).forEach(function(a) { flat.push(a); });
+        listToShow = flat;
+      }
+      listToShow.forEach(function(a) {
+        var opt = document.createElement("option");
+        opt.value = a.name;
+        opt.textContent = (a.name || "") + " (" + (a.host || "") + ")";
+        sel.appendChild(opt);
+      });
+    }
+
+    loadAssetTree();
+
+    function formatSessionTime(iso) {
+      if (!iso) return "";
+      const s = iso.slice(0, 19).replace("T", " ");
+      const today = new Date().toISOString().slice(0, 10);
+      if (iso.startsWith(today)) return "今天 " + s.slice(11, 16);
+      const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+      if (iso.startsWith(yesterday)) return "昨天 " + s.slice(11, 16);
+      return s.slice(0, 16);
+    }
+
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/sessions");
+        sessionList = await res.json();
+        historyListEl.innerHTML = "";
+        historyListEl.appendChild(sidebarEmptyHint);
+        if (sidebarEmptyHint) sidebarEmptyHint.style.display = sessionList.length ? "none" : "block";
+        sessionList.forEach(s => {
+          const item = document.createElement("div");
+          item.className = "sidebar-session-item" + (s.id === currentSessionId ? " active" : "");
+          item.innerHTML = '<span class="session-title">' + escapeHtml(s.title || "会话") + "</span><span class=\"session-time\">" + escapeHtml(formatSessionTime(s.updated_at)) + "</span><button type=\"button\" class=\"sidebar-session-delete\" title=\"删除会话\" aria-label=\"删除会话\">×</button>";
+          item.addEventListener("click", (e) => {
+            if (!e.target.classList.contains("sidebar-session-delete")) selectSession(s.id);
+          });
+          const delBtn = item.querySelector(".sidebar-session-delete");
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openDeleteSessionModal(s.id, s.title || "会话");
+          });
+          historyListEl.appendChild(item);
         });
       } catch (_) {}
     }
-    loadAssets();
+
+    function renderConversation(turns) {
+      chatTurns.innerHTML = "";
+      if (!turns || !turns.length) {
+        chatPanel.classList.add("empty");
+        return;
+      }
+      chatPanel.classList.remove("empty");
+      turns.forEach(turn => {
+        const turnEl = document.createElement("div");
+        turnEl.className = "chat-turn";
+        let html = '<div class="chat-msg user"><span class="chat-label">我</span><div class="chat-content">' + escapeHtml(turn.user || "") + "</div></div>";
+        if (turn.commands && turn.commands.length) {
+          html += '<div class="chat-commands-wrap"><div class="chat-label">执行过程</div><div class="chat-commands">';
+          turn.commands.forEach(c => {
+            const assetLabel = escapeHtml(c.asset_name || "") + (c.asset_host ? " (" + escapeHtml(c.asset_host) + ")" : "");
+            html += '<div class="chat-cmd-block"><div class="asset">' + assetLabel + "</div><div class=\"cmd\">$ " + escapeHtml(c.command || "") + "</div><div class=\"result\">" + escapeHtml(c.result || "") + "</div></div>";
+          });
+          html += "</div></div>";
+        }
+        html += '<div class="chat-msg assistant"><span class="chat-label">助手</span><div class="chat-content">' + formatReplyWithTables(turn.reply || "") + "</div></div>";
+        turnEl.innerHTML = html;
+        chatTurns.appendChild(turnEl);
+      });
+    }
+
+    function selectSession(id) {
+      currentSessionId = id || null;
+      loadSessions();
+      if (!id) {
+        sessionTurnsEl.innerHTML = "";
+        sessionTurnsWrap.classList.add("empty");
+        renderConversation([]);
+        // 无会话时恢复全局默认运维对象
+        restoreAssetSelectValue();
+        return;
+      }
+      fetch("/api/sessions/" + id)
+          .then(r => r.json())
+          .then(data => {
+            sessionTurnsWrap.classList.remove("empty");
+            if (!(data.turns && data.turns.length)) {
+              sessionTurnsEl.innerHTML = "<span class=\"sidebar-turn\">该会话暂无对话记录</span>";
+            } else {
+              let html = "";
+              data.turns.forEach(t => {
+                html += '<div class="sidebar-turn"><b>我：</b>' + escapeHtml((t.user || "").slice(0, 80)) + (t.user && t.user.length > 80 ? "…" : "") + "</div>";
+                if (t.reply) html += '<div class="sidebar-turn"><b>助手：</b>' + escapeHtml((t.reply || "").slice(0, 80)) + (t.reply && t.reply.length > 80 ? "…" : "") + "</div>";
+              });
+              sessionTurnsEl.innerHTML = html;
+            }
+            renderConversation(data.turns || []);
+            // 切换会话后，优先根据该会话最近一轮的 asset_select 恢复运维对象；若没有则退回本地默认
+            if (assetSelect && data.turns && data.turns.length) {
+              let sel = "";
+              for (let i = data.turns.length - 1; i >= 0; i--) {
+                const t = data.turns[i];
+                if (t && t.asset_select) {
+                  sel = t.asset_select;
+                  break;
+                }
+              }
+              if (sel) {
+                const exists = Array.from(assetSelect.options || []).some(o => o.value === sel);
+                if (exists) {
+                  assetSelect.value = sel;
+                } else {
+                  restoreAssetSelectValue();
+                }
+              } else {
+                restoreAssetSelectValue();
+              }
+            } else {
+              restoreAssetSelectValue();
+            }
+          })
+          .catch(() => {
+            sessionTurnsEl.innerHTML = "";
+            sessionTurnsWrap.classList.add("empty");
+            renderConversation([]);
+          });
+    }
+
+    newSessionBtn.addEventListener("click", () => selectSession(null));
+
+    if (cancelDeleteSessionBtn) {
+      cancelDeleteSessionBtn.addEventListener("click", () => {
+        closeDeleteSessionModal();
+      });
+    }
+
+    if (confirmDeleteSessionBtn) {
+      confirmDeleteSessionBtn.addEventListener("click", () => {
+        const sid = pendingDeleteSessionId;
+        if (!sid) {
+          closeDeleteSessionModal();
+          return;
+        }
+        fetch("/api/sessions/" + sid, { method: "DELETE" })
+          .then(r => {
+            if (r.ok) {
+              if (currentSessionId === sid) {
+                currentSessionId = null;
+                renderConversation([]);
+                sessionTurnsWrap.classList.add("empty");
+                sessionTurnsEl.innerHTML = "";
+              }
+              loadSessions();
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            closeDeleteSessionModal();
+          });
+      });
+    }
+
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener("click", () => {
+        sidebar.classList.toggle("collapsed");
+        sidebarToggle.textContent = sidebar.classList.contains("collapsed") ? "▶" : "◀";
+      });
+    }
+
+    loadSessions();
 
     let currentTraceId = null;
+    let statusPollTimer = null;
 
     function setLoading(loading) {
       submitBtn.disabled = loading;
       stopBtn.disabled = !loading;
       if (loading) document.body.classList.add("loading");
-      else {
-        document.body.classList.remove("loading");
-        currentTraceId = null;
+      else document.body.classList.remove("loading");
+    }
+
+    function renderRunState(state) {
+      if (!state) return;
+      currentRunWrap.classList.remove("result-hidden");
+      if (state.instruction) currentRunUser.textContent = state.instruction;
+      currentRunCommands.innerHTML = "";
+      (state.commands || []).forEach(cmd => {
+        const block = document.createElement("div");
+        block.className = "chat-cmd-block";
+        const assetLabel = (cmd.asset_name || "") + (cmd.asset_host ? " (" + cmd.asset_host + ")" : "");
+        block.innerHTML =
+          '<div class="asset">' + escapeHtml(assetLabel) + '</div>' +
+          '<div class="cmd">$ ' + escapeHtml(cmd.command || "") + '</div>' +
+          '<div class="result">' + escapeHtml(cmd.result || "") + '</div>';
+        currentRunCommands.appendChild(block);
+      });
+      if (state.error) {
+        showError(state.error);
+      } else if (state.reply) {
+        currentRunReply.innerHTML = formatReplyWithTables(state.reply || "");
+        currentRunReply.parentElement.classList.remove("error");
+      } else {
+        currentRunReply.innerHTML = "执行中…";
+        currentRunReply.parentElement.classList.remove("error");
       }
     }
 
+    async function pollRunStatus(traceId) {
+      if (!traceId) return;
+      try {
+        const res = await fetch("/api/run/status/" + encodeURIComponent(traceId));
+        if (!res.ok) return;
+        const state = await res.json();
+        if (state && state.trace_id) {
+          currentTraceId = state.trace_id;
+          if (state.running) {
+            renderRunState(state);
+            setLoading(true);
+          } else {
+            // 已结束：隐藏“当前执行块”，仅展示会话历史，避免重复显示
+            currentRunWrap.classList.add("result-hidden");
+            setLoading(false);
+            currentTraceId = null;
+            clearInterval(statusPollTimer);
+            statusPollTimer = null;
+            localStorage.removeItem("ai_ops_last_trace_id");
+            // 尝试刷新会话历史（若有 session_id）
+            if (state.session_id) {
+              currentSessionId = state.session_id;
+              loadSessions();
+              fetch("/api/sessions/" + currentSessionId)
+                .then(r => r.json())
+                .then(sessionData => {
+                  renderConversation(sessionData.turns || []);
+                })
+                .catch(() => {});
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    function startStatusPolling(traceId) {
+      if (statusPollTimer) clearInterval(statusPollTimer);
+      statusPollTimer = setInterval(() => pollRunStatus(traceId), 2000);
+    }
+
+    // 页面加载时尝试恢复执行进度（跨页面返回）
+    (function restoreLastRun() {
+      try {
+        const tid = localStorage.getItem("ai_ops_last_trace_id");
+        if (tid) {
+          pollRunStatus(tid);
+          startStatusPolling(tid);
+        }
+      } catch (_) {}
+    })();
+
     function showError(msg) {
-      replyEl.textContent = msg;
-      replyEl.classList.remove("empty");
-      replySection.classList.add("error");
+      if (currentRunReply) {
+        currentRunReply.innerHTML = escapeHtml(msg);
+        currentRunReply.parentElement.classList.add("error");
+      }
     }
 
     function escapeHtml(s) {
@@ -311,37 +1043,17 @@
       return out.join("<br>");
     }
 
-    /** 命令开始：立即显示「执行中…」（顺序与后端一致，用第一个 pending 匹配结果） */
-    function appendCommandStart(asset_name, command) {
-      commandsEl.classList.remove("empty");
+    function appendCommandStart(asset_name, command, asset_host) {
+      const assetLabel = (asset_name || "") + (asset_host ? " (" + asset_host + ")" : "");
       const block = document.createElement("div");
-      block.className = "cmd-block pending";
-      block.innerHTML = `
-        <div class="asset">🖥 ${escapeHtml(asset_name)}</div>
-        <div class="cmd">$ ${escapeHtml(command)}</div>
-        <div class="result">执行中…</div>
-      `;
-      commandsEl.appendChild(block);
+      block.className = "chat-cmd-block pending";
+      block.innerHTML = '<div class="asset">' + escapeHtml(assetLabel) + "</div><div class=\"cmd\">$ " + escapeHtml(command) + "</div><div class=\"result\">执行中…</div>";
+      currentRunCommands.appendChild(block);
       block.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
-    /** 无工具模式：追加模型本轮输出（模型思考过程） */
-    function appendModelReply(round, content) {
-      modelThinkingSection.classList.remove("result-hidden");
-      modelThinkingEl.classList.remove("empty");
-      const block = document.createElement("div");
-      block.className = "model-reply-block";
-      block.style.marginTop = "0.75rem";
-      block.style.padding = "0.5rem 0";
-      block.style.borderTop = "1px solid var(--border)";
-      block.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;">第 ${round} 轮模型输出</div><pre class="reply-body" style="margin:0.25rem 0 0;white-space:pre-wrap;word-break:break-all;">${escapeHtml((content || "").trim())}</pre>`;
-      modelThinkingEl.appendChild(block);
-      block.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    /** 命令结束：更新当前第一个「执行中」块为实际结果 */
     function updateCommandResult(c) {
-      const block = commandsEl.querySelector(".cmd-block.pending");
+      const block = currentRunCommands.querySelector(".chat-cmd-block.pending");
       if (!block) return;
       const resultEl = block.querySelector(".result");
       if (resultEl) {
@@ -385,72 +1097,89 @@
       const instruction = instructionEl.value.trim();
       if (!instruction) return;
 
-      document.getElementById("commands-section").classList.remove("result-hidden");
-      document.getElementById("model-thinking-section").classList.remove("result-hidden");
-      document.getElementById("reply-section").classList.remove("result-hidden");
-
       setLoading(true);
-      commandsEl.innerHTML = "正在执行…";
-      commandsEl.classList.remove("empty");
-      modelThinkingEl.innerHTML = "等待模型输出…";
-      modelThinkingEl.classList.remove("empty");
-      replyEl.textContent = "等待中…";
-      replyEl.classList.remove("empty");
-      replySection.classList.remove("error");
+      currentRunWrap.classList.remove("result-hidden");
+      currentRunUser.textContent = instruction;
+      currentRunCommands.innerHTML = "";
+      currentRunReply.innerHTML = "等待中…";
+      currentRunReply.parentElement.classList.remove("error");
 
       const selValue = assetSelect.value;
       let asset_names = null;
       if (selValue === "__all__" && assetList.length) asset_names = assetList.map(a => a.name);
-      else if (selValue && selValue !== "__all__") asset_names = [selValue];
+      else if (selValue && selValue.startsWith("__group__")) {
+        const gid = parseInt(selValue.replace("__group__", ""), 10);
+        const g = (treeData.groups || []).find(x => x.id === gid);
+        if (g && g.assets && g.assets.length) asset_names = g.assets.map(a => a.name);
+      } else if (selValue && selValue !== "__all__") asset_names = [selValue];
 
       try {
         const res = await fetch("/api/run/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ instruction, asset_names }),
+          body: JSON.stringify({
+            instruction,
+            asset_names,
+            session_id: currentSessionId || undefined,
+            asset_select: selValue || "",
+          }),
         });
 
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           showError(data.detail || res.statusText || "请求失败");
-          commandsEl.innerHTML = "暂无执行记录";
-          commandsEl.classList.add("empty");
           return;
         }
-
-        commandsEl.innerHTML = "";
 
         await consumeSSE(res, (eventType, data) => {
           if (eventType === "start" && data.trace_id) {
             currentTraceId = data.trace_id;
+            try { localStorage.setItem("ai_ops_last_trace_id", currentTraceId); } catch (_) {}
+            startStatusPolling(currentTraceId);
+            if (data.session_id) {
+              currentSessionId = data.session_id;
+              loadSessions();
+            }
           } else if (eventType === "command_start") {
-            appendCommandStart(data.asset_name, data.command);
+            appendCommandStart(data.asset_name, data.command, data.asset_host);
           } else if (eventType === "command") {
             updateCommandResult(data);
           } else if (eventType === "model_reply") {
             appendModelReply(data.round || 1, data.content || "");
           } else if (eventType === "reply") {
-            replyEl.innerHTML = formatReplyWithTables(data.reply || "");
-            replyEl.classList.remove("empty");
-            replySection.classList.remove("error");
-            if (!modelThinkingEl.querySelector(".model-reply-block")) {
-              modelThinkingEl.innerHTML = "无（本次未使用无工具多轮模式）";
-              modelThinkingEl.classList.add("empty");
+            currentRunReply.innerHTML = formatReplyWithTables(data.reply || "");
+            currentRunReply.parentElement.classList.remove("error");
+            if (currentSessionId) {
+              loadSessions();
+              fetch("/api/sessions/" + currentSessionId)
+                .then(r => r.json())
+                .then(sessionData => {
+                  renderConversation(sessionData.turns || []);
+                  if (sessionData.turns && sessionData.turns.length) {
+                    sessionTurnsWrap.classList.remove("empty");
+                    let html = "";
+                    sessionData.turns.forEach(t => {
+                      html += '<div class="sidebar-turn"><b>我：</b>' + escapeHtml((t.user || "").slice(0, 80)) + (t.user && t.user.length > 80 ? "…" : "") + "</div>";
+                      if (t.reply) html += '<div class="sidebar-turn"><b>助手：</b>' + escapeHtml((t.reply || "").slice(0, 80)) + (t.reply && t.reply.length > 80 ? "…" : "") + "</div>";
+                    });
+                    sessionTurnsEl.innerHTML = html;
+                  }
+                })
+                .catch(() => {});
             }
+            // 执行完成：停止轮询并隐藏“当前执行块”，避免与历史重复显示
+            if (statusPollTimer) { clearInterval(statusPollTimer); statusPollTimer = null; }
+            try { localStorage.removeItem("ai_ops_last_trace_id"); } catch (_) {}
+            currentRunWrap.classList.add("result-hidden");
+            currentTraceId = null;
           } else if (eventType === "error") {
             showError(data.detail || "执行出错");
           }
         });
-
-        if (commandsEl.querySelectorAll(".cmd-block").length === 0) {
-          commandsEl.innerHTML = "暂无执行记录";
-          commandsEl.classList.add("empty");
-        }
       } catch (e) {
         showError("网络错误: " + e.message);
-        commandsEl.innerHTML = "暂无执行记录";
-        commandsEl.classList.add("empty");
       } finally {
+        // 不在这里清空 trace_id：由 status 接口判定是否结束
         setLoading(false);
       }
     });

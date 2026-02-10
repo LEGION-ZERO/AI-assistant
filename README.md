@@ -76,8 +76,10 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0
 ```
 
-浏览器访问 `http://localhost:8000`，在页面输入指令并点击「执行」即可。  
-**资产管理**：访问 `http://localhost:8000/assets` 可增删改 Linux 资产（配置写入 config.yaml），并可上传文件到指定资产。
+浏览器访问 `http://localhost:8000`，在页面输入指令并点击「执行」即可。同一会话内可连续对话，历史会话会持久化到数据库。  
+**资产管理**：访问 `http://localhost:8000/assets` 可增删改 Linux 资产；资产与会话均持久化在数据库中，并可上传文件到指定资产。
+
+**数据存储**：会话与资产均保存在项目目录下的 `data/sessions.db`（SQLite）。首次启动时若数据库中无资产且存在 `config.yaml` 中的资产配置，会自动迁移到数据库。可通过环境变量 `AI_OPS_SESSION_DB` 指定路径，例如：`AI_OPS_SESSION_DB=/var/lib/ai-ops/sessions.db`。
 
 - **API 文档**：`http://localhost:8000/docs`
 - **提交指令**：`POST /api/run`，请求体 `{"instruction": "对 linux_222 做一次巡检"}`，返回 `{"reply": "...", "commands": [...]}`

@@ -232,8 +232,15 @@ def upload_file_to_asset(
 
 
 def get_asset_by_name(config: AppConfig, name: str) -> Optional[AssetConfig]:
+    """按资产名称或 host（IP）查找；用户输入 IP 时可直接匹配到对应资产。"""
+    name = (name or "").strip()
+    if not name:
+        return None
     for a in config.assets:
-        if a.name == name:
+        if (a.name or "").strip() == name:
+            return a
+    for a in config.assets:
+        if (a.host or "").strip() == name:
             return a
     return None
 

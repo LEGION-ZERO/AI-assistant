@@ -29,16 +29,125 @@
     }
     .nav a { color: var(--muted); text-decoration: none; }
     .nav a:hover, .nav a.active { color: var(--accent); }
-    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
-    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
-    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
-    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .assets-layout { display: flex; min-height: calc(100vh - 52px); }
+    .assets-sidebar {
+      width: 260px;
+      min-width: 260px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .assets-sidebar__head {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .assets-sidebar__title { font-size: 0.95rem; font-weight: 600; margin: 0; color: var(--text); }
+    .assets-sidebar__body { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
+    .group-tree { list-style: none; margin: 0; padding: 0; }
+    .group-tree .tree-node { margin: 0; }
+    .tree-node__inner {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      border-radius: 6px;
+      margin: 0 0.25rem;
+    }
+    .tree-node__inner:hover { background: rgba(255,255,255,0.05); }
+    .tree-node__inner.selected { background: rgba(88,166,255,0.15); color: var(--accent); }
+    .tree-node__toggle {
+      width: 1rem;
+      flex-shrink: 0;
+      border: none;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      font-size: 0.7rem;
+    }
+    .tree-node__toggle:hover { color: var(--text); }
+    .tree-node__toggle.empty { visibility: hidden; }
+    .tree-node__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+    .tree-node__actions { display: none; gap: 0.2rem; flex-shrink: 0; }
+    .tree-node__inner:hover .tree-node__actions { display: flex; }
+    .tree-node__actions button {
+      padding: 0.15rem 0.4rem;
+      font-size: 0.7rem;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .tree-node__actions button:hover { color: var(--accent); }
+    .tree-node__actions .del:hover { color: var(--danger); }
+    .tree-children { list-style: none; margin: 0; padding-left: 1rem; border-left: 1px solid var(--border); margin-left: 0.75rem; }
+    .tree-children.collapsed { display: none; }
+    .assets-main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 1.5rem; }
+    .assets-main .page-header { margin-bottom: 1rem; }
+    .assets-main .page-header h1 { font-size: 1.25rem; }
+    .current-group-hint { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .page-header { margin-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.35rem; color: var(--text); }
+    .page-header .page-desc { color: var(--muted); font-size: 0.9rem; margin: 0; }
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+    .tabs .tab {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tabs .tab:hover { color: var(--text); }
+    .tabs .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; padding: 1.5rem 0 0; }
+    .tab-panel.active { display: block; }
+    .page-section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .page-section__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.15);
+    }
+    .page-section__title { font-size: 1rem; font-weight: 600; color: var(--text); margin: 0; }
+    .page-section__desc { font-size: 0.8rem; color: var(--muted); margin: 0.25rem 0 0; width: 100%; }
+    .page-section__body { padding: 1.25rem; }
     .btn {
       padding: 0.5rem 1rem;
       border: none;
       border-radius: 8px;
       font-family: inherit;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       font-weight: 500;
       cursor: pointer;
       transition: background 0.15s, opacity 0.15s;
@@ -49,14 +158,29 @@
     .btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
     .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
     .btn-danger:hover { background: rgba(248,81,73,0.15); }
-    .section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
-    .cell-actions { display: flex; gap: 0.5rem; }
-    .empty-tip { color: var(--muted); padding: 2rem; text-align: center; }
+    .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+    .asset-table-wrap { overflow-x: auto; }
+    .asset-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .asset-table th,
+    .asset-table td { padding: 0.7rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .asset-table thead th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .asset-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .asset-table tbody tr:last-child td { border-bottom: none; }
+    .asset-table .col-name { font-weight: 500; color: var(--text); }
+    .asset-table .col-group { color: var(--muted); font-size: 0.85rem; }
+    .asset-table .col-auth { font-size: 0.85rem; color: var(--muted); }
+    .cell-actions { display: flex; gap: 0.4rem; }
+    .empty-tip { color: var(--muted); padding: 2.5rem 1rem; text-align: center; font-size: 0.9rem; }
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -97,6 +221,23 @@
       box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
     }
     .form-group input[readonly] { opacity: 0.8; }
+    .form-group textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 4em;
+    }
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
+    }
     .auth-options { display: flex; gap: 1rem; margin-bottom: 0.5rem; }
     .auth-options label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text); }
     .auth-options input[type=radio] { width: auto; }
@@ -107,10 +248,22 @@
     .toast.error { border-color: var(--danger); color: var(--danger); }
     .toast.success { border-color: var(--accent); color: var(--accent); }
     .toast.hidden { display: none; }
-    .upload-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-    .upload-section h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text); }
-    .upload-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.75rem; }
-    .upload-row .form-group { margin-bottom: 0; }
+    .group-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .group-table th, .group-table td { padding: 0.7rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .group-table thead th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .group-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .group-table tbody tr:last-child td { border-bottom: none; }
+    .group-table .col-name { font-weight: 500; color: var(--text); }
+    .group-table .col-remark { color: var(--muted); font-size: 0.85rem; max-width: 280px; }
+    .group-list-empty { color: var(--muted); padding: 2rem; text-align: center; font-size: 0.9rem; }
+    .upload-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; }
+    .upload-row .form-group { margin-bottom: 0; min-width: 140px; }
     .upload-row input[type="file"] {
       padding: 0.5rem;
       border: 1px solid var(--border);
@@ -120,8 +273,8 @@
       font-family: inherit;
       font-size: 0.9rem;
     }
-    .upload-row input[type="text"].remote-path { min-width: 200px; max-width: 320px; }
-    .upload-status { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; }
+    .upload-row input[type="text"].remote-path { min-width: 200px; max-width: 280px; }
+    .upload-status { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
     .upload-status.success { color: var(--accent); }
     .upload-status.error { color: var(--danger); }
   </style>
@@ -130,55 +283,88 @@
   <nav class="nav">
     <a href="/">首页</a>
     <a href="/assets" class="active">资产管理</a>
+    <a href="/about">关于</a>
   </nav>
-  <div class="container">
-    <h1>资产管理</h1>
-    <p class="subtitle">管理 Linux 资产（服务器），用于 AI 巡检与部署。配置将写入 config.yaml。</p>
-
-    <div class="toolbar">
-      <span></span>
-      <button type="button" class="btn btn-primary" id="btnAdd">新增资产</button>
-    </div>
-
-    <div class="section">
-      <table>
-        <thead>
-          <tr>
-            <th>名称</th>
-            <th>主机</th>
-            <th>端口</th>
-            <th>用户名</th>
-            <th>认证</th>
-            <th style="width: 140px;">操作</th>
-          </tr>
-        </thead>
-        <tbody id="tbody">
-          <tr><td colspan="6" class="empty-tip">加载中…</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="upload-section">
-      <h2>上传文件到资产</h2>
-      <div class="upload-row">
-        <div class="form-group">
-          <label for="uploadFile">选择文件</label>
-          <input type="file" id="uploadFile" />
-        </div>
-        <div class="form-group">
-          <label for="uploadAsset">目标资产</label>
-          <select id="uploadAsset">
-            <option value="">请选择资产</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="uploadRemotePath">远程路径（可选）</label>
-          <input type="text" id="uploadRemotePath" class="remote-path" placeholder="留空则传到 /tmp/ 目录（用原文件名）" />
-        </div>
-        <button type="button" class="btn btn-primary" id="uploadSubmit">上传</button>
+  <div class="assets-layout">
+    <aside class="assets-sidebar">
+      <div class="assets-sidebar__head">
+        <h2 class="assets-sidebar__title">资产组</h2>
+        <button type="button" class="btn btn-primary btn-sm" id="btnAddGroup">新增组</button>
       </div>
-      <div class="upload-status" id="uploadStatus"></div>
-    </div>
+      <div class="assets-sidebar__body">
+        <ul id="groupTree" class="group-tree">加载中…</ul>
+      </div>
+    </aside>
+    <main class="assets-main">
+      <header class="page-header">
+        <h1>资产管理</h1>
+        <p class="page-desc">左侧点击组可查看该组及子组下的全部资产；在首页执行指令时可按组或单台选择运维对象。</p>
+      </header>
+
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" role="tab" aria-selected="true" data-tab="assets">资产列表</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="upload">上传文件</button>
+      </div>
+
+      <div id="panel-assets" class="tab-panel active" role="tabpanel">
+        <p id="currentGroupHint" class="current-group-hint">全部资产</p>
+        <section class="page-section">
+          <div class="page-section__head">
+            <h2 class="page-section__title">资产列表</h2>
+            <button type="button" class="btn btn-primary" id="btnAdd">新增资产</button>
+          </div>
+          <div class="page-section__body">
+            <div class="asset-table-wrap">
+              <table class="asset-table">
+                <thead>
+                  <tr>
+                    <th>名称</th>
+                    <th>主机</th>
+                    <th>端口</th>
+                    <th>用户名</th>
+                    <th>所属组</th>
+                    <th>认证</th>
+                    <th style="width: 120px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody">
+                  <tr><td colspan="7" class="empty-tip">加载中…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div id="panel-upload" class="tab-panel" role="tabpanel">
+        <section class="page-section">
+          <div class="page-section__head">
+            <h2 class="page-section__title">上传文件到资产</h2>
+            <p class="page-section__desc">选择本地文件与目标资产，可指定远程保存路径（留空则保存到 /tmp/）。</p>
+          </div>
+          <div class="page-section__body">
+            <div class="upload-row">
+              <div class="form-group">
+                <label for="uploadFile">选择文件</label>
+                <input type="file" id="uploadFile" />
+              </div>
+              <div class="form-group">
+                <label for="uploadAsset">目标资产</label>
+                <select id="uploadAsset">
+                  <option value="">请选择资产</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="uploadRemotePath">远程路径（可选）</label>
+                <input type="text" id="uploadRemotePath" class="remote-path" placeholder="留空则传到 /tmp/" />
+              </div>
+              <button type="button" class="btn btn-primary" id="uploadSubmit">上传</button>
+            </div>
+            <div class="upload-status" id="uploadStatus"></div>
+          </div>
+        </section>
+      </div>
+    </main>
   </div>
 
   <div class="modal-overlay hidden" id="modal">
@@ -216,10 +402,42 @@
           <label>私钥路径</label>
           <input type="text" id="formKey" placeholder="如 ~/.ssh/id_rsa" />
         </div>
+        <div class="form-group">
+          <label>所属组</label>
+          <select id="formGroupId">
+            <option value="">未分组</option>
+          </select>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
         <button type="button" class="btn btn-primary" id="btnSubmit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="groupModal">
+    <div class="modal">
+      <div class="modal-title" id="groupModalTitle">新增组</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>父组</label>
+          <select id="groupParentId">
+            <option value="">根组（顶级）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>组名称</label>
+          <input type="text" id="groupName" placeholder="例如：生产环境" />
+        </div>
+        <div class="form-group">
+          <label>备注</label>
+          <textarea id="groupRemark" rows="3" placeholder="可选"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="groupModalCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="groupModalSave">保存</button>
       </div>
     </div>
   </div>
@@ -242,8 +460,28 @@
     const btnCancel = document.getElementById("btnCancel");
     const btnSubmit = document.getElementById("btnSubmit");
     const toast = document.getElementById("toast");
+    const groupTreeEl = document.getElementById("groupTree");
+    const groupRemarkEl = document.getElementById("groupRemark");
+    const groupParentIdEl = document.getElementById("groupParentId");
+    const formGroupIdEl = document.getElementById("formGroupId");
+    const currentGroupHintEl = document.getElementById("currentGroupHint");
 
     let editingName = null;
+    let groupList = [];
+    let groupTreeData = [];
+    let selectedGroupId = null;
+
+    document.querySelectorAll(".tabs .tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll(".tabs .tab").forEach(b => { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
+        btn.classList.add("active");
+        btn.setAttribute("aria-selected", "true");
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        const panel = document.getElementById("panel-" + tab);
+        if (panel) panel.classList.add("active");
+      });
+    });
 
     function showToast(msg, type) {
       toast.textContent = msg;
@@ -258,41 +496,159 @@
     const uploadSubmitBtn = document.getElementById("uploadSubmit");
     const uploadStatusEl = document.getElementById("uploadStatus");
 
-    async function loadAssets() {
+    function groupNameById(id) {
+      const g = groupList.find(x => x.id === id);
+      return g ? g.name : "";
+    }
+
+    function flattenTree(nodes, depth) {
+      let out = [];
+      (nodes || []).forEach(n => {
+        out.push({ id: n.id, name: n.name, depth: depth });
+        out = out.concat(flattenTree(n.children, depth + 1));
+      });
+      return out;
+    }
+
+    async function loadGroupsFlat() {
       try {
-        const res = await fetch("/api/assets");
+        const res = await fetch("/api/asset-groups");
+        groupList = (await res.json()) || [];
+      } catch (_) { groupList = []; }
+    }
+
+    async function loadGroupsTree() {
+      try {
+        const res = await fetch("/api/asset-groups/tree");
+        groupTreeData = (await res.json()) || [];
+        renderGroupTree(groupTreeData, groupTreeEl);
+      } catch (_) {
+        groupTreeData = [];
+        groupTreeEl.innerHTML = '<li class="group-list-empty">加载失败</li>';
+      }
+    }
+
+    function renderGroupTree(nodes, container) {
+      container.innerHTML = "";
+      if (!nodes || nodes.length === 0) {
+        container.innerHTML = '<li class="group-list-empty" style="padding: 1rem 0.75rem;">暂无分组，点击「新增组」添加</li>';
+        return;
+      }
+      nodes.forEach(node => {
+        const hasChildren = node.children && node.children.length > 0;
+        const li = document.createElement("li");
+        li.className = "tree-node";
+        li.innerHTML =
+          '<div class="tree-node__inner" data-id="' + node.id + '">' +
+          '<button type="button" class="tree-node__toggle ' + (hasChildren ? '' : 'empty') + '" aria-label="展开/收起">' + (hasChildren ? '▶' : '') + '</button>' +
+          '<span class="tree-node__label" title="' + escapeHtml(node.name) + '">' + escapeHtml(node.name) + '</span>' +
+          '<span class="tree-node__actions">' +
+          '<button type="button" class="add-child" data-id="' + node.id + '">子组</button>' +
+          '<button type="button" class="edit" data-id="' + node.id + '">编辑</button>' +
+          '<button type="button" class="del" data-id="' + node.id + '">删除</button>' +
+          '</span></div>';
+        const inner = li.querySelector(".tree-node__inner");
+        const toggle = li.querySelector(".tree-node__toggle");
+        if (selectedGroupId === node.id) inner.classList.add("selected");
+        inner.addEventListener("click", (e) => {
+          if (e.target.closest(".tree-node__actions")) return;
+          selectedGroupId = node.id;
+          document.querySelectorAll(".tree-node__inner").forEach(el => el.classList.remove("selected"));
+          inner.classList.add("selected");
+          currentGroupHintEl.textContent = "当前：" + node.name + "（及子组）";
+          loadAssets(selectedGroupId);
+        });
+        if (hasChildren) {
+          toggle.textContent = "▼";
+          toggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const childrenEl = li.querySelector(".tree-children");
+            if (childrenEl) {
+              childrenEl.classList.toggle("collapsed");
+              toggle.textContent = childrenEl.classList.contains("collapsed") ? "▶" : "▼";
+            }
+          });
+          const childList = document.createElement("ul");
+          childList.className = "tree-children";
+          li.appendChild(childList);
+          renderGroupTree(node.children, childList);
+        }
+        li.querySelector(".add-child")?.addEventListener("click", (e) => { e.stopPropagation(); openGroupAdd(node.id); });
+        li.querySelector(".edit")?.addEventListener("click", (e) => { e.stopPropagation(); openGroupEdit(node.id); });
+        li.querySelector(".del")?.addEventListener("click", (e) => { e.stopPropagation(); doDeleteGroup(node.id); });
+        container.appendChild(li);
+      });
+    }
+
+    function fillFormGroupSelect() {
+      formGroupIdEl.innerHTML = '<option value="">未分组</option>';
+      const flat = flattenTree(groupTreeData, 0);
+      flat.forEach(g => {
+        const opt = document.createElement("option");
+        opt.value = g.id;
+        opt.textContent = "　".repeat(g.depth) + g.name;
+        formGroupIdEl.appendChild(opt);
+      });
+    }
+
+    function fillGroupParentSelect(exceptId) {
+      groupParentIdEl.innerHTML = '<option value="">根组（顶级）</option>';
+      const flat = flattenTree(groupTreeData, 0).filter(g => g.id !== exceptId);
+      flat.forEach(g => {
+        const opt = document.createElement("option");
+        opt.value = g.id;
+        opt.textContent = "　".repeat(g.depth) + g.name;
+        groupParentIdEl.appendChild(opt);
+      });
+    }
+
+    async function loadAssets(groupId) {
+      try {
+        const url = groupId != null ? "/api/assets?group_id=" + groupId : "/api/assets";
+        const res = await fetch(url);
         const list = await res.json();
         if (!list || list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="empty-tip">暂无资产，点击「新增资产」添加</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-tip">暂无资产，点击「新增资产」添加</td></tr>';
+          const allRes = await fetch("/api/assets");
+          const allList = (await allRes.json()) || [];
           while (uploadAssetEl.options.length > 1) uploadAssetEl.remove(1);
+          allList.forEach(a => {
+            const opt = document.createElement("option");
+            opt.value = a.name;
+            opt.textContent = a.name + " (" + a.host + ")";
+            uploadAssetEl.appendChild(opt);
+          });
           return;
         }
         tbody.innerHTML = list.map(a => `
           <tr>
-            <td><strong>${escapeHtml(a.name)}</strong></td>
+            <td class="col-name">${escapeHtml(a.name)}</td>
             <td>${escapeHtml(a.host)}</td>
             <td>${a.port}</td>
             <td>${escapeHtml(a.username)}</td>
-            <td>${a.auth_type === "password" ? "密码" : "私钥"}</td>
+            <td class="col-group">${escapeHtml(a.group_id != null ? groupNameById(a.group_id) : "—")}</td>
+            <td class="col-auth">${a.auth_type === "password" ? "密码" : "私钥"}</td>
             <td>
               <div class="cell-actions">
-                <button type="button" class="btn btn-ghost btn-edit" data-name="${escapeAttr(a.name)}">编辑</button>
-                <button type="button" class="btn btn-danger btn-del" data-name="${escapeAttr(a.name)}">删除</button>
+                <button type="button" class="btn btn-ghost btn-sm btn-edit" data-name="${escapeAttr(a.name)}">编辑</button>
+                <button type="button" class="btn btn-danger btn-sm btn-del" data-name="${escapeAttr(a.name)}">删除</button>
               </div>
             </td>
           </tr>
         `).join("");
         tbody.querySelectorAll(".btn-edit").forEach(el => el.addEventListener("click", () => openEdit(el.dataset.name)));
         tbody.querySelectorAll(".btn-del").forEach(el => el.addEventListener("click", () => doDelete(el.dataset.name)));
+        const allRes = await fetch("/api/assets");
+        const allList = (await allRes.json()) || [];
         while (uploadAssetEl.options.length > 1) uploadAssetEl.remove(1);
-        list.forEach(a => {
+        allList.forEach(a => {
           const opt = document.createElement("option");
           opt.value = a.name;
           opt.textContent = a.name + " (" + a.host + ")";
           uploadAssetEl.appendChild(opt);
         });
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-tip">加载失败: ' + escapeHtml(e.message) + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-tip">加载失败: ' + escapeHtml(e.message) + '</td></tr>';
       }
     }
 
@@ -315,6 +671,8 @@
       formUsername.value = "";
       formPassword.value = "";
       formKey.value = "";
+      fillFormGroupSelect();
+      formGroupIdEl.value = "";
       document.querySelector('input[name="auth"][value="key"]').checked = true;
       panelPassword.classList.remove("show");
       panelKey.classList.add("show");
@@ -335,6 +693,8 @@
         formUsername.value = a.username;
         formPassword.value = "";
         formKey.value = a.private_key_path || "";
+        fillFormGroupSelect();
+        formGroupIdEl.value = (a.group_id != null ? String(a.group_id) : "");
         const auth = a.auth_type === "password" ? "password" : "key";
         document.querySelector('input[name="auth"][value="' + auth + '"]').checked = true;
         panelPassword.classList.toggle("show", auth === "password");
@@ -371,15 +731,15 @@
       if (!editingName && !password && !private_key_path) { showToast("请填写密码或私钥路径", "error"); return; }
       if (editingName && auth === "key" && !private_key_path) { showToast("请填写私钥路径", "error"); return; }
 
+      const group_id = formGroupIdEl.value ? parseInt(formGroupIdEl.value, 10) : null;
       try {
         if (editingName) {
-          const body = { host, port, username };
+          const body = { host, port, username, group_id };
           if (auth === "password") {
             if (password) body.password = password;
-            // 密码留空则不传，后端保留原密码
           } else {
             body.private_key_path = private_key_path || "";
-            body.password = "";  // 改为密钥时清空密码
+            body.password = "";
           }
           const res = await fetch("/api/assets/" + encodeURIComponent(editingName), {
             method: "PUT",
@@ -400,6 +760,7 @@
               username,
               password: password || undefined,
               private_key_path: private_key_path || undefined,
+              group_id,
             }),
           });
           const data = await res.json();
@@ -407,7 +768,7 @@
           showToast("已添加");
         }
         modal.classList.add("hidden");
-        loadAssets();
+        loadAssets(selectedGroupId);
       } catch (e) {
         showToast(e.message || "保存失败", "error");
       }
@@ -420,7 +781,89 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || res.statusText);
         showToast("已删除");
-        loadAssets();
+        loadAssets(selectedGroupId);
+      } catch (e) {
+        showToast(e.message || "删除失败", "error");
+      }
+    }
+
+    const groupModal = document.getElementById("groupModal");
+    const groupModalTitle = document.getElementById("groupModalTitle");
+    const groupNameEl = document.getElementById("groupName");
+    let editingGroupId = null;
+
+    function openGroupAdd(parentId) {
+      editingGroupId = null;
+      groupModalTitle.textContent = parentId != null ? "添加子组" : "新增组";
+      groupNameEl.value = "";
+      groupRemarkEl.value = "";
+      fillGroupParentSelect();
+      groupParentIdEl.value = parentId != null ? String(parentId) : "";
+      groupModal.classList.remove("hidden");
+    }
+
+    document.getElementById("btnAddGroup").addEventListener("click", () => openGroupAdd(null));
+    document.getElementById("groupModalCancel").addEventListener("click", () => groupModal.classList.add("hidden"));
+    groupModal.addEventListener("click", e => { if (e.target === groupModal) groupModal.classList.add("hidden"); });
+    document.getElementById("groupModalSave").addEventListener("click", async () => {
+      const name = (groupNameEl.value || "").trim();
+      const remark = (groupRemarkEl.value || "").trim();
+      const parent_id = groupParentIdEl.value ? parseInt(groupParentIdEl.value, 10) : null;
+      if (!name) { showToast("请输入组名称", "error"); return; }
+      try {
+        if (editingGroupId != null) {
+          const res = await fetch("/api/asset-groups/" + editingGroupId, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, remark: remark || null, parent_id }),
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+          showToast("已更新");
+        } else {
+          const res = await fetch("/api/asset-groups", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, remark: remark || null, parent_id }),
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+          showToast("已添加");
+        }
+        groupModal.classList.add("hidden");
+        await loadGroupsFlat();
+        await loadGroupsTree();
+        loadAssets(selectedGroupId);
+        fillFormGroupSelect();
+      } catch (e) {
+        showToast(e.message || "操作失败", "error");
+      }
+    });
+
+    function openGroupEdit(id) {
+      const g = groupList.find(x => x.id === id);
+      if (!g) return;
+      editingGroupId = id;
+      groupModalTitle.textContent = "编辑组";
+      groupNameEl.value = g.name;
+      groupRemarkEl.value = g.remark || "";
+      fillGroupParentSelect(id);
+      groupParentIdEl.value = g.parent_id != null ? String(g.parent_id) : "";
+      groupModal.classList.remove("hidden");
+    }
+
+    async function doDeleteGroup(id) {
+      if (!confirm("确定删除该组？子组会上移一层，组内资产将变为未分组。")) return;
+      try {
+        const res = await fetch("/api/asset-groups/" + id, { method: "DELETE" });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+        showToast("已删除");
+        if (selectedGroupId === id) {
+          selectedGroupId = null;
+          currentGroupHintEl.textContent = "全部资产";
+        }
+        await loadGroupsFlat();
+        await loadGroupsTree();
+        loadAssets(selectedGroupId);
+        fillFormGroupSelect();
       } catch (e) {
         showToast(e.message || "删除失败", "error");
       }
@@ -475,7 +918,12 @@
         uploadRemotePathEl.placeholder = "留空则用: /tmp/" + (uploadFileEl.files[0].name || "原文件名");
     });
 
-    loadAssets();
+    (async function init() {
+      await loadGroupsTree();
+      await loadGroupsFlat();
+      fillFormGroupSelect();
+      loadAssets(selectedGroupId);
+    })();
   </script>
 </body>
 </html>

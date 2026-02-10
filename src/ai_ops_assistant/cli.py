@@ -45,7 +45,7 @@ def main() -> None:
             return True
         try:
             console.print("[dim]正在执行，AI 将自动规划并调用 SSH...[/dim]\n")
-            reply = run_instruction(
+            reply, _ = run_instruction(
                 user_instruction,
                 config_path=config_path,
                 on_command=on_command,
