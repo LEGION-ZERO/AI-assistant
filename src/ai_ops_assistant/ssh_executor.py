@@ -1,9 +1,12 @@
 """在 Linux 资产上通过 SSH 执行命令。优先 paramiko，不可用时回退到系统 ssh 命令（如 Windows OpenSSH）。"""
+import logging
 import subprocess
 from pathlib import Path
 from typing import Optional
 
 from .config import AssetConfig, AppConfig
+
+logger = logging.getLogger("ai_ops_assistant.ssh")
 
 _paramiko_available = False
 _paramiko = None
@@ -127,11 +130,25 @@ def _execute_subprocess(asset: AssetConfig, command: str, timeout: int) -> str:
         return f"执行失败: {type(e).__name__}: {e}"
 
 
-def execute_on_asset(asset: AssetConfig, command: str, timeout: int = 30) -> str:
+def _command_timeout(command: str, default: int = 30) -> int:
+    """包管理类命令可能较慢，给更长超时。"""
+    cmd_lower = (command or "").strip().lower()
+    if any(x in cmd_lower for x in ("apt-get", "apt ", "apt-", "dnf ", "yum ", "zypper ")):
+        return max(default, 120)
+    return default
+
+
+def execute_on_asset(asset: AssetConfig, command: str, timeout: int | None = None) -> str:
     """在单台资产上执行命令，返回 stdout+stderr 合并文本。"""
+    if timeout is None:
+        timeout = _command_timeout(command, default=60)
+    logger.info("execute_on_asset 开始 asset=%s host=%s port=%s cmd=%r timeout=%s", asset.name, asset.host, asset.port, command, timeout)
     if _paramiko_available:
-        return _execute_paramiko(asset, command, timeout)
-    return _execute_subprocess(asset, command, timeout)
+        result = _execute_paramiko(asset, command, timeout)
+    else:
+        result = _execute_subprocess(asset, command, timeout)
+    logger.info("execute_on_asset 完成 asset=%s cmd=%r result_len=%s", asset.name, command, len(result or ""))
+    return result
 
 
 def _upload_paramiko(asset: AssetConfig, local_path: str, remote_path: str, timeout: int = 60) -> str:

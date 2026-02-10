@@ -1,12 +1,34 @@
 # Linux 智能运维助手 - 配置示例
 # 复制为 config.yaml 并填写真实信息，勿将 config.yaml 提交到版本库
 
-# DeepSeek API（必填）
-# 从 https://platform.deepseek.com/api_keys 获取
+# DeepSeek / 本地大模型（OpenAI 兼容接口）
+# - DeepSeek 官方：从 https://platform.deepseek.com/api_keys 获取 key
+# - 本地 Ollama：先 `OLLAMA_HOST=0.0.0.0:11434 ollama serve`，base_url 填 http://<ip>:11434/v1（api_key 可留空）
+# - 本地 vLLM：base_url 填 http://<ip>:8081，model 填实际加载名如 Qwen/Qwen2.5-1.5B-Instruct，建议 use_self_coded_fc: true
 deepseek:
-  api_key: "sk-xxxxxxxx"
-  base_url: "https://api.deepseek.com"
-  model: "deepseek-chat"
+  api_key: "sk-xxxxxxxx"          # Ollama/vLLM 可留空
+  base_url: "https://api.deepseek.com"   # Ollama: "http://192.168.1.205:11434/v1"  vLLM: "http://192.168.1.205:8081"
+  model: "deepseek-chat"          # Ollama: "qwen2.5:7b-instruct"  vLLM: "Qwen/Qwen2.5-1.5B-Instruct"
+  # 设为 true 时用「提示词+解析」实现函数调用，不依赖 API 的 tool_calls（适合本地模型，如 llama3）
+  use_prompt_tools: false
+  # 设为 true 时用「自研 Agent」：模型输出 JSON 或 <tool_call>，程序解析并调度，适合本地 DeepSeek/Ollama 无原生 func call
+  use_self_coded_fc: false
+  # 为 true 时工具执行走 MCP（需先启动 mcp_server.py --tool-http），实现「通过 MCP 做 func call」
+  use_mcp_for_tools: false
+  mcp_tool_url: "http://127.0.0.1:8002/api/tool"  # 用 /api/tool 避免与 MCP streamable HTTP 校验冲突；端口 8002 与主站 8000 不冲突
+
+# 钉钉应用机器人（可选）：在群里 @ 机器人或单聊发指令即可执行运维
+# 1. 钉钉开放平台 https://open.dingtalk.com 创建应用，添加机器人，接收方式选「HTTP」
+# 2. 消息接收地址填：https://你的域名/webhook/dingtalk
+# 3. 应用凭证中复制 AppSecret 填到 app_secret
+# 4. 若开启了「消息加密」，在应用详情/事件订阅中复制「加密密钥」填到 encoding_aes_key（43 位）
+# 5. URL 校验（保存接收地址时钉钉会验证）：在事件订阅中复制 Token 填到 token；加密 success 用 app_key（Client ID）或 corp_id，一般填 app_key 即可
+dingtalk:
+  app_secret: ""
+  encoding_aes_key: ""
+  token: ""
+  app_key: ""   # Client ID / AppKey，与 corp_id 二选一，消息接收地址校验建议填 app_key
+  corp_id: ""
 
 # Linux 资产列表
 assets:

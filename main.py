@@ -1,328 +1,368 @@
-"""FastAPI Web 入口：提供 API 与前端页面。"""
+"""
+FastAPI Web 入口：
+- 静态页面：/ (index.html), /assets (assets.html)
+- 指令执行：/api/run（一次性返回）, /api/run/stream（SSE 实时流）
+- 资产管理：/api/assets CRUD（写入 config.yaml）
+- 文件上传：/api/upload（上传到指定资产）
+"""
+
+from __future__ import annotations
+
 import asyncio
 import json
+import logging
+import os
+import sys
 import tempfile
 import threading
+import uuid
+from datetime import datetime
 from pathlib import Path
-from queue import Queue
+from typing import Any, AsyncGenerator, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
 
-# 确保从项目根运行时可导入
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+ROOT_DIR = Path(__file__).resolve().parent
+# 允许在未安装包的情况下直接 `uvicorn main:app`
+sys.path.insert(0, str(ROOT_DIR / "src"))
 
-from ai_ops_assistant.orchestrator import run_instruction
-from ai_ops_assistant.config import load_config, save_config
-from ai_ops_assistant.config import AssetConfig as AssetConfigModel
-from ai_ops_assistant.ssh_executor import get_asset_by_name, upload_file_to_asset
+from ai_ops_assistant.config import AppConfig, AssetConfig, load_config, save_config  # noqa: E402
+from ai_ops_assistant.orchestrator import run_instruction  # noqa: E402
+from ai_ops_assistant.ssh_executor import get_asset_by_name, upload_file_to_asset  # noqa: E402
 
-app = FastAPI(
-    title="Linux 智能运维助手",
-    description="接入 DeepSeek，通过自然语言指令完成 Linux 部署、巡检等运维任务",
-    version="0.1.0",
+
+app = FastAPI(title="Linux 智能运维助手")
+
+# 流式执行任务取消：trace_id -> threading.Event，收到停止请求时 set()
+_run_cancel_events: dict[str, threading.Event] = {}
+
+LOG_LEVEL = os.environ.get("AI_OPS_LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+logger = logging.getLogger("ai_ops_assistant.web")
 
-# 静态资源目录（前端页面）
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+STATIC_DIR = ROOT_DIR / "static"
+CONFIG_PATH = Path(os.environ.get("AI_OPS_CONFIG", "config.yaml"))
+# 交互日志目录：
+# - 默认：<项目根目录>/logs/interaction
+# - 可通过环境变量 AI_OPS_INTERACTION_LOG_DIR 覆盖
+INTERACTION_LOG_DIR = os.environ.get("AI_OPS_INTERACTION_LOG_DIR") or str(ROOT_DIR / "logs" / "interaction")
+
+
+def _load() -> AppConfig:
+    return load_config(CONFIG_PATH)
+
+
+def _asset_public(a: AssetConfig) -> dict[str, Any]:
+    return {
+        "name": a.name,
+        "host": a.host,
+        "port": a.port,
+        "username": a.username,
+        "auth_type": "password" if (a.password or "").strip() else "key",
+        "private_key_path": a.private_key_path,
+    }
+
+
+def _sse(event: str, data: Any) -> str:
+    # 前端以 "\n\n" 作为事件块分隔，并期望 data 为 JSON
+    return f"event: {event}\n" + "data: " + json.dumps(data, ensure_ascii=False) + "\n\n"
 
 
 class RunRequest(BaseModel):
-    instruction: str
-    asset_names: list[str] | None = None  # 可选，指定本次仅对这些资产执行
-
-
-class CommandLog(BaseModel):
-    asset_name: str
-    command: str
-    result: str
+    instruction: str = Field(..., description="自然语言指令")
+    asset_names: Optional[list[str]] = Field(default=None, description="可选：限制本次只可使用这些资产名")
 
 
 class RunResponse(BaseModel):
     reply: str
-    commands: list[CommandLog]
+    commands: list[dict[str, str]] = Field(default_factory=list, description="命令执行记录（asset_name/command/result）")
 
 
-class AssetItem(BaseModel):
-    name: str
-    host: str
-    port: int
-    username: str
-    auth_type: str = "key"  # "password" | "key"
-    private_key_path: str | None = None
+class RunStopRequest(BaseModel):
+    trace_id: str = Field(..., description="要停止的流式执行任务 ID（由 /api/run/stream 首条 start 事件返回）")
 
 
-class AssetCreate(BaseModel):
+class AssetCreateRequest(BaseModel):
     name: str
     host: str
     port: int = 22
     username: str
-    password: str | None = None
-    private_key_path: str | None = None
+    password: Optional[str] = None
+    private_key_path: Optional[str] = None
 
 
-class AssetUpdate(BaseModel):
-    host: str | None = None
-    port: int | None = None
-    username: str | None = None
-    password: str | None = None
-    private_key_path: str | None = None
+class AssetUpdateRequest(BaseModel):
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    private_key_path: Optional[str] = None
 
 
-def _check_instruction_and_config(instruction: str):
-    instruction = (instruction or "").strip()
-    if not instruction:
-        raise HTTPException(status_code=400, detail="instruction 不能为空")
-    config_path = Path("config.yaml")
-    if not config_path.exists():
-        raise HTTPException(
-            status_code=503,
-            detail="未找到 config.yaml，请复制 config.example.yaml 并配置。",
-        )
-    return instruction, config_path
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
 
 
-@app.post("/api/run", response_model=RunResponse)
-def api_run(req: RunRequest):
-    """提交一条自然语言指令，返回 AI 回复与执行过的命令列表（非流式）。"""
-    instruction, config_path = _check_instruction_and_config(req.instruction)
-    commands_log: list[dict] = []
-
-    def on_command(asset_name: str, command: str, result: str) -> None:
-        commands_log.append({
-            "asset_name": asset_name,
-            "command": command,
-            "result": result,
-        })
-
-    try:
-        reply = run_instruction(
-            instruction,
-            config_path=config_path,
-            on_command=on_command,
-            asset_names=req.asset_names,
-        )
-        return RunResponse(reply=reply, commands=[CommandLog(**c) for c in commands_log])
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/run/stream")
-def api_run_stream(req: RunRequest):
-    """提交指令，以 SSE 流式返回：命令一开始就推送 command_start，执行完推送 command，最后 reply。"""
-    instruction, config_path = _check_instruction_and_config(req.instruction)
-    queue: Queue = Queue()
-
-    def on_command_start(asset_name: str, command: str) -> None:
-        queue.put(("command_start", {"asset_name": asset_name, "command": command}))
-
-    def on_command(asset_name: str, command: str, result: str) -> None:
-        queue.put(("command", {"asset_name": asset_name, "command": command, "result": result}))
-
-    def run_in_thread() -> None:
-        try:
-            reply = run_instruction(
-                instruction,
-                config_path=config_path,
-                on_command=on_command,
-                on_command_start=on_command_start,
-                asset_names=req.asset_names,
-            )
-            queue.put(("reply", {"reply": reply}))
-        except Exception as e:
-            queue.put(("error", {"detail": str(e)}))
-        finally:
-            queue.put(None)
-
-    async def event_stream():
-        loop = asyncio.get_event_loop()
-        t = threading.Thread(target=run_in_thread)
-        t.start()
-        while True:
-            item = await loop.run_in_executor(None, queue.get)
-            if item is None:
-                break
-            event_type, data = item
-            payload = json.dumps(data, ensure_ascii=False)
-            yield f"event: {event_type}\ndata: {payload}\n\n"
-
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
-def _get_config():
-    try:
-        return load_config(Path("config.yaml"))
-    except FileNotFoundError:
-        raise HTTPException(status_code=503, detail="未找到 config.yaml，请先复制 config.example.yaml 为 config.yaml")
-
+@app.get("/assets", include_in_schema=False)
+def assets_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "assets.html")
 
 
 @app.get("/api/assets")
-def api_assets():
-    """返回已配置的资产列表（不含密码，含认证方式）。"""
-    try:
-        config = load_config(Path("config.yaml"))
-        return [
-            AssetItem(
-                name=a.name,
-                host=a.host,
-                port=a.port,
-                username=a.username,
-                auth_type="password" if a.password else "key",
-                private_key_path=a.private_key_path,
-            )
-            for a in config.assets
-        ]
-    except FileNotFoundError:
-        return []
-    except Exception:
-        return []
+def api_list_assets() -> list[dict[str, Any]]:
+    config = _load()
+    return [_asset_public(a) for a in config.assets]
 
 
 @app.get("/api/assets/{name}")
-def api_asset_get(name: str):
-    """获取单个资产（不含密码）。"""
-    config = _get_config()
-    for a in config.assets:
-        if a.name == name:
-            return AssetItem(
-                name=a.name,
-                host=a.host,
-                port=a.port,
-                username=a.username,
-                auth_type="password" if a.password else "key",
-                private_key_path=a.private_key_path,
-            )
-    raise HTTPException(status_code=404, detail=f"资产不存在: {name}")
+def api_get_asset(name: str) -> dict[str, Any]:
+    config = _load()
+    a = get_asset_by_name(config, name)
+    if not a:
+        raise HTTPException(status_code=404, detail="未找到该资产")
+    return _asset_public(a)
 
 
 @app.post("/api/assets")
-def api_asset_create(body: AssetCreate):
-    """新增资产。"""
-    config = _get_config()
-    name = (body.name or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="资产名称不能为空")
-    for a in config.assets:
-        if a.name == name:
-            raise HTTPException(status_code=409, detail=f"资产名称已存在: {name}")
-    if not body.password and not body.private_key_path:
-        raise HTTPException(status_code=400, detail="请填写密码或私钥路径之一")
+def api_create_asset(body: AssetCreateRequest) -> dict[str, Any]:
+    config = _load()
+    if get_asset_by_name(config, body.name):
+        raise HTTPException(status_code=400, detail="资产名称已存在")
+
+    if (body.password or "").strip() and (body.private_key_path or "").strip():
+        raise HTTPException(status_code=400, detail="password 与 private_key_path 二选一即可")
+    if not (body.password or "").strip() and not (body.private_key_path or "").strip():
+        raise HTTPException(status_code=400, detail="请填写 password 或 private_key_path")
+
     config.assets.append(
-        AssetConfigModel(
-            name=name,
-            host=(body.host or "").strip(),
-            port=body.port or 22,
-            username=(body.username or "").strip(),
-            password=body.password or None,
-            private_key_path=(body.private_key_path or "").strip() or None,
+        AssetConfig(
+            name=body.name,
+            host=body.host,
+            port=body.port,
+            username=body.username,
+            password=(body.password or None),
+            private_key_path=(body.private_key_path or None),
         )
     )
-    save_config(config, Path("config.yaml"))
-    return {"ok": True, "name": name}
+    save_config(config, CONFIG_PATH)
+    return {"ok": True}
 
 
 @app.put("/api/assets/{name}")
-def api_asset_update(name: str, body: AssetUpdate):
-    """更新资产。不传的字段保持不变；password 传空字符串表示改为使用密钥。"""
-    config = _get_config()
-    for i, a in enumerate(config.assets):
-        if a.name == name:
-            new_host = body.host.strip() if body.host is not None else a.host
-            new_port = body.port if body.port is not None else a.port
-            new_user = body.username.strip() if body.username is not None else a.username
-            new_pass = a.password
-            if body.password is not None:
-                new_pass = body.password if body.password else None
-            new_key = a.private_key_path
-            if body.private_key_path is not None:
-                new_key = (body.private_key_path or "").strip() or None
-            if not new_pass and not new_key:
-                raise HTTPException(status_code=400, detail="至少保留密码或私钥路径之一")
-            config.assets[i] = AssetConfigModel(
-                name=a.name,
-                host=new_host,
-                port=new_port,
-                username=new_user,
-                password=new_pass,
-                private_key_path=new_key,
-            )
-            save_config(config, Path("config.yaml"))
-            return {"ok": True, "name": name}
-    raise HTTPException(status_code=404, detail=f"资产不存在: {name}")
+def api_update_asset(name: str, body: AssetUpdateRequest) -> dict[str, Any]:
+    config = _load()
+    a = get_asset_by_name(config, name)
+    if not a:
+        raise HTTPException(status_code=404, detail="未找到该资产")
+
+    if body.host is not None:
+        a.host = body.host
+    if body.port is not None:
+        a.port = body.port
+    if body.username is not None:
+        a.username = body.username
+
+    # 认证更新策略（与前端约定对齐）：
+    # - PUT 里 password 为空字符串：表示清空密码（切换为密钥模式时前端会传 ""）
+    # - PUT 里 password 省略/None：表示不修改密码（前端编辑密码留空时不传）
+    if body.password is not None:
+        a.password = (body.password or None)
+
+    # - private_key_path 传入：更新密钥路径；传入 "" 表示清空
+    if body.private_key_path is not None:
+        a.private_key_path = (body.private_key_path or None)
+
+    save_config(config, CONFIG_PATH)
+    return {"ok": True}
 
 
 @app.delete("/api/assets/{name}")
-def api_asset_delete(name: str):
-    """删除资产。"""
-    config = _get_config()
-    for i, a in enumerate(config.assets):
-        if a.name == name:
-            config.assets.pop(i)
-            save_config(config, Path("config.yaml"))
-            return {"ok": True, "name": name}
-    raise HTTPException(status_code=404, detail=f"资产不存在: {name}")
+def api_delete_asset(name: str) -> dict[str, Any]:
+    config = _load()
+    before = len(config.assets)
+    config.assets = [a for a in config.assets if a.name != name]
+    if len(config.assets) == before:
+        raise HTTPException(status_code=404, detail="未找到该资产")
+    save_config(config, CONFIG_PATH)
+    return {"ok": True}
 
 
 @app.post("/api/upload")
-def api_upload(
+async def api_upload(
     file: UploadFile = File(...),
     asset_name: str = Form(...),
-    remote_path: str | None = Form(None),
-):
-    """上传文件到指定资产。remote_path 可选，不填则传到远程 /tmp/ 目录、使用原文件名。"""
-    config = _get_config()
+    remote_path: Optional[str] = Form(default=None),
+) -> JSONResponse:
+    config = _load()
     asset = get_asset_by_name(config, asset_name)
     if not asset:
-        raise HTTPException(status_code=404, detail=f"资产不存在: {asset_name}")
-    filename = file.filename or "upload"
-    rpath = (remote_path or "").strip() or f"/tmp/{filename}"
+        raise HTTPException(status_code=404, detail="未找到该资产")
+
+    filename = (file.filename or "upload.bin").strip() or "upload.bin"
+    if not remote_path:
+        remote_path = f"/tmp/{filename}"
+
+    # 保存到临时文件，再上传
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename or "").suffix) as tmp:
-            content = file.file.read()
-            tmp.write(content)
+        suffix = Path(filename).suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp_path = tmp.name
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                tmp.write(chunk)
+        msg = upload_file_to_asset(asset, tmp_path, remote_path)
+        ok = not msg.startswith("错误")
+        if ok:
+            return JSONResponse({"ok": True, "message": msg})
+        return JSONResponse({"ok": False, "detail": msg}, status_code=400)
+    finally:
         try:
-            msg = upload_file_to_asset(asset, tmp_path, rpath)
-            if msg.startswith("已上传"):
-                return {"ok": True, "message": msg, "remote_path": rpath}
-            raise HTTPException(status_code=502, detail=msg)
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)
-    except HTTPException:
-        raise
+            if "tmp_path" in locals() and tmp_path and Path(tmp_path).exists():
+                Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+@app.post("/api/run", response_model=RunResponse)
+def api_run(body: RunRequest) -> RunResponse:
+    trace_id = uuid.uuid4().hex[:12]
+    logger.info("[%s] /api/run 收到指令 instruction=%r asset_names=%s", trace_id, body.instruction, body.asset_names)
+    commands: list[dict[str, str]] = []
+
+    def on_command_start(asset_name: str, command: str) -> None:
+        # 非流式接口仅用于记录开始（可选）
+        logger.info("[%s] 命令开始 asset=%s cmd=%r", trace_id, asset_name, command)
+        commands.append({"asset_name": asset_name, "command": command, "result": ""})
+
+    def on_command(asset_name: str, command: str, result: str) -> None:
+        # 更新最后一条匹配记录
+        logger.info("[%s] 命令完成 asset=%s cmd=%r result_len=%s", trace_id, asset_name, command, len(result or ""))
+        for i in range(len(commands) - 1, -1, -1):
+            if commands[i]["asset_name"] == asset_name and commands[i]["command"] == command and not commands[i]["result"]:
+                commands[i]["result"] = result
+                break
+        else:
+            commands.append({"asset_name": asset_name, "command": command, "result": result})
+
+    try:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        interaction_log_path = (Path(INTERACTION_LOG_DIR) / f"{trace_id}_{ts}.txt") if INTERACTION_LOG_DIR else None
+        reply = run_instruction(
+            body.instruction,
+            config_path=CONFIG_PATH,
+            on_command_start=on_command_start,
+            on_command=on_command,
+            asset_names=body.asset_names,
+            trace_id=trace_id,
+            interaction_log_path=interaction_log_path,
+        )
+        logger.info("[%s] /api/run 助手回复长度=%s", trace_id, len(reply or ""))
+        return RunResponse(reply=reply, commands=commands)
+    except FileNotFoundError as e:
+        logger.warning("[%s] /api/run 配置文件未找到: %s", trace_id, e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("[%s] /api/run 执行出错", trace_id)
+        raise HTTPException(status_code=500, detail=f"执行出错: {e}")
 
 
-@app.get("/assets")
-def assets_page():
-    """资产管理页面。"""
-    index_file = STATIC_DIR / "assets.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    raise HTTPException(status_code=404, detail="assets.html not found")
+@app.post("/api/run/stop")
+def api_run_stop(body: RunStopRequest) -> dict[str, Any]:
+    """请求停止正在进行的流式执行任务（在下一轮命令前生效，当前正在执行的单条命令会跑完）。"""
+    ev = _run_cancel_events.get(body.trace_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="未找到该任务或任务已结束")
+    ev.set()
+    logger.info("[%s] 已收到停止请求", body.trace_id)
+    return {"ok": True, "message": "已发送停止请求"}
 
 
-@app.get("/")
-def index():
-    """返回前端页面。"""
-    index_file = STATIC_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return {"message": "Linux 智能运维助手 API", "docs": "/docs", "api_run": "POST /api/run"}
+@app.post("/api/run/stream")
+async def api_run_stream(body: RunRequest) -> StreamingResponse:
+    """
+    SSE 流式执行：
+    - start: {trace_id}（首条，用于停止时传入 /api/run/stop）
+    - command_start: {asset_name, command}
+    - command: {asset_name, command, result}
+    - reply: {reply}
+    - error: {detail}
+    """
+
+    trace_id = uuid.uuid4().hex[:12]
+    logger.info("[%s] /api/run/stream 收到指令 instruction=%r asset_names=%s", trace_id, body.instruction, body.asset_names)
+    cancel_event = threading.Event()
+    _run_cancel_events[trace_id] = cancel_event
+    q: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
+
+    def on_command_start(asset_name: str, command: str) -> None:
+        logger.info("[%s] SSE 推送 command_start asset=%s cmd=%r", trace_id, asset_name, command)
+        q.put_nowait(("command_start", {"asset_name": asset_name, "command": command}))
+
+    def on_command(asset_name: str, command: str, result: str) -> None:
+        logger.info("[%s] SSE 推送 command asset=%s cmd=%r result_len=%s", trace_id, asset_name, command, len(result or ""))
+        q.put_nowait(("command", {"asset_name": asset_name, "command": command, "result": result}))
+
+    def on_model_reply(round_index: int, content: str) -> None:
+        logger.info("[%s] SSE 推送 model_reply round=%s len=%s", trace_id, round_index, len(content or ""))
+        q.put_nowait(("model_reply", {"round": round_index, "content": content or ""}))
+
+    async def event_gen() -> AsyncGenerator[str, None]:
+        # 先发一个注释行，帮助某些代理/反向代理尽早建立流
+        yield ": stream start\n\n"
+        yield _sse("start", {"trace_id": trace_id})
+
+        done = asyncio.Event()
+
+        def _runner() -> None:
+            try:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                interaction_log_path = (Path(INTERACTION_LOG_DIR) / f"{trace_id}_{ts}.txt") if INTERACTION_LOG_DIR else None
+                reply = run_instruction(
+                    body.instruction,
+                    config_path=CONFIG_PATH,
+                    on_command_start=on_command_start,
+                    on_command=on_command,
+                    on_model_reply=on_model_reply,
+                    asset_names=body.asset_names,
+                    trace_id=trace_id,
+                    cancel_event=cancel_event,
+                    interaction_log_path=interaction_log_path,
+                )
+                logger.info("[%s] SSE 助手回复长度=%s", trace_id, len(reply or ""))
+                q.put_nowait(("reply", {"reply": reply}))
+            except FileNotFoundError as e:
+                logger.warning("[%s] SSE 配置文件未找到: %s", trace_id, e)
+                q.put_nowait(("error", {"detail": str(e)}))
+            except Exception as e:
+                logger.exception("[%s] SSE 执行出错", trace_id)
+                q.put_nowait(("error", {"detail": f"执行出错: {e}"}))
+            finally:
+                done.set()
+                _run_cancel_events.pop(trace_id, None)
+
+        asyncio.get_running_loop().run_in_executor(None, _runner)
+
+        # 直到 runner 结束且队列清空为止
+        while True:
+            try:
+                event, data = await asyncio.wait_for(q.get(), timeout=15)
+                logger.debug("[%s] SSE 发送事件 event=%s", trace_id, event)
+                yield _sse(event, data)
+            except asyncio.TimeoutError:
+                # 心跳，避免连接被中间层关闭
+                yield ": keep-alive\n\n"
+
+            if done.is_set() and q.empty():
+                logger.info("[%s] /api/run/stream 流结束", trace_id)
+                break
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream")
+

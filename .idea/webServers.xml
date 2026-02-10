@@ -9,6 +9,20 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="fc11d4d4-7ad6-446f-9e6f-f2358435053f" name="192.168.1.205(AI)">
+        <fileTransfer rootFolder="/home/hulin/projects/AI-assistan" accessType="SFTP" host="192.168.1.205" port="22" sshConfigId="33eda7cb-f109-4e2b-b312-2a2fa4d4b2a0" sshConfig="root@192.168.1.205:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="716b12aa-69e4-40d8-8e1c-a7df3b549f65" name="librarylili.site">
+        <fileTransfer rootFolder="/root/project/AI-ASSISTANT" accessType="SFTP" host="39.96.115.93" port="22" sshConfigId="6c3044ae-9c58-4182-9806-f6c400e8d885" sshConfig="root@39.96.115.93:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
   </component>
 </project>

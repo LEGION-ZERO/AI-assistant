@@ -80,6 +80,12 @@
     }
     .btn-primary:hover { background: #79b8ff; }
     .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-danger {
+      background: #da3633;
+      color: #fff;
+    }
+    .btn-danger:hover { background: #f85149; }
+    .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
     .section {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -111,12 +117,17 @@
     .cmd-block .cmd { font-family: "JetBrains Mono", monospace; color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
     .cmd-block .result { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; white-space: pre-wrap; }
     .reply-body { white-space: pre-wrap; }
+    #reply .reply-table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.9rem; }
+    #reply .reply-table th, #reply .reply-table td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+    #reply .reply-table th { background: var(--panel); color: var(--accent); font-weight: 600; }
+    #reply .reply-table tr:nth-child(even) { background: rgba(255,255,255,0.03); }
     .error {
       background: rgba(248, 81, 73, 0.1);
       border-color: #f85149;
       color: #f85149;
     }
     .loading { opacity: 0.7; pointer-events: none; }
+    .loading #stopBtn { pointer-events: auto; }
     .cmd-block.pending .result { color: var(--muted); }
     .cmd-block.pending .result::after { content: " ▋"; animation: blink 0.8s step-end infinite; }
     @keyframes blink { 50% { opacity: 0; } }
@@ -188,11 +199,17 @@
         autocomplete="off"
       />
       <button type="button" class="btn btn-primary" id="submit">执行</button>
+      <button type="button" class="btn btn-danger" id="stopBtn" disabled title="停止当前执行（下一轮命令前生效）">停止</button>
     </div>
 
     <div class="section result-hidden" id="commands-section">
       <div class="section-title">执行过程</div>
       <div class="section-body empty" id="commands">暂无执行记录</div>
+    </div>
+
+    <div class="section result-hidden" id="model-thinking-section">
+      <div class="section-title">模型思考 / 每轮输出</div>
+      <div class="section-body empty" id="model-thinking">无（自研 Agent/原生 tools 模式下此处不显示）</div>
     </div>
 
     <div class="section result-hidden" id="reply-section">
@@ -204,8 +221,11 @@
   <script>
     const instructionEl = document.getElementById("instruction");
     const submitBtn = document.getElementById("submit");
+    const stopBtn = document.getElementById("stopBtn");
     const assetSelect = document.getElementById("assetSelect");
     const commandsEl = document.getElementById("commands");
+    const modelThinkingEl = document.getElementById("model-thinking");
+    const modelThinkingSection = document.getElementById("model-thinking-section");
     const replyEl = document.getElementById("reply");
     const replySection = document.getElementById("reply-section");
 
@@ -228,10 +248,16 @@
     }
     loadAssets();
 
+    let currentTraceId = null;
+
     function setLoading(loading) {
       submitBtn.disabled = loading;
+      stopBtn.disabled = !loading;
       if (loading) document.body.classList.add("loading");
-      else document.body.classList.remove("loading");
+      else {
+        document.body.classList.remove("loading");
+        currentTraceId = null;
+      }
     }
 
     function showError(msg) {
@@ -246,6 +272,45 @@
       return div.innerHTML;
     }
 
+    /** 将助手回复中的 Markdown 表格转为 HTML 表格，其余为转义文本+换行 */
+    function formatReplyWithTables(text) {
+      if (!text || !text.trim()) return "";
+      const lines = text.split("\n");
+      const out = [];
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        if (line.trim().startsWith("|")) {
+          const tableLines = [];
+          while (i < lines.length && lines[i].trim().startsWith("|")) {
+            tableLines.push(lines[i]);
+            i++;
+          }
+          const rows = tableLines.map((l) =>
+            l.split("|").slice(1, -1).map((c) => c.trim())
+          );
+          if (rows.length === 0) continue;
+          const isSep = (row) => row.every((c) => /^[-:\s]+$/.test(c));
+          const header = rows[0];
+          const bodyStart = rows.length > 1 && isSep(rows[1]) ? 2 : 1;
+          let html = '<table class="reply-table"><thead><tr>';
+          header.forEach((cell) => { html += "<th>" + escapeHtml(cell) + "</th>"; });
+          html += "</tr></thead><tbody>";
+          for (let r = bodyStart; r < rows.length; r++) {
+            html += "<tr>";
+            rows[r].forEach((cell) => { html += "<td>" + escapeHtml(cell) + "</td>"; });
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+          out.push(html);
+        } else {
+          out.push(escapeHtml(line));
+          i++;
+        }
+      }
+      return out.join("<br>");
+    }
+
     /** 命令开始：立即显示「执行中…」（顺序与后端一致，用第一个 pending 匹配结果） */
     function appendCommandStart(asset_name, command) {
       commandsEl.classList.remove("empty");
@@ -257,6 +322,20 @@
         <div class="result">执行中…</div>
       `;
       commandsEl.appendChild(block);
+      block.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    /** 无工具模式：追加模型本轮输出（模型思考过程） */
+    function appendModelReply(round, content) {
+      modelThinkingSection.classList.remove("result-hidden");
+      modelThinkingEl.classList.remove("empty");
+      const block = document.createElement("div");
+      block.className = "model-reply-block";
+      block.style.marginTop = "0.75rem";
+      block.style.padding = "0.5rem 0";
+      block.style.borderTop = "1px solid var(--border)";
+      block.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;">第 ${round} 轮模型输出</div><pre class="reply-body" style="margin:0.25rem 0 0;white-space:pre-wrap;word-break:break-all;">${escapeHtml((content || "").trim())}</pre>`;
+      modelThinkingEl.appendChild(block);
       block.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -307,11 +386,14 @@
       if (!instruction) return;
 
       document.getElementById("commands-section").classList.remove("result-hidden");
+      document.getElementById("model-thinking-section").classList.remove("result-hidden");
       document.getElementById("reply-section").classList.remove("result-hidden");
 
       setLoading(true);
       commandsEl.innerHTML = "正在执行…";
       commandsEl.classList.remove("empty");
+      modelThinkingEl.innerHTML = "等待模型输出…";
+      modelThinkingEl.classList.remove("empty");
       replyEl.textContent = "等待中…";
       replyEl.classList.remove("empty");
       replySection.classList.remove("error");
@@ -339,14 +421,22 @@
         commandsEl.innerHTML = "";
 
         await consumeSSE(res, (eventType, data) => {
-          if (eventType === "command_start") {
+          if (eventType === "start" && data.trace_id) {
+            currentTraceId = data.trace_id;
+          } else if (eventType === "command_start") {
             appendCommandStart(data.asset_name, data.command);
           } else if (eventType === "command") {
             updateCommandResult(data);
+          } else if (eventType === "model_reply") {
+            appendModelReply(data.round || 1, data.content || "");
           } else if (eventType === "reply") {
-            replyEl.textContent = data.reply || "";
+            replyEl.innerHTML = formatReplyWithTables(data.reply || "");
             replyEl.classList.remove("empty");
             replySection.classList.remove("error");
+            if (!modelThinkingEl.querySelector(".model-reply-block")) {
+              modelThinkingEl.innerHTML = "无（本次未使用无工具多轮模式）";
+              modelThinkingEl.classList.add("empty");
+            }
           } else if (eventType === "error") {
             showError(data.detail || "执行出错");
           }
@@ -367,6 +457,21 @@
 
     instructionEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") submitBtn.click();
+    });
+
+    stopBtn.addEventListener("click", async () => {
+      if (!currentTraceId) return;
+      try {
+        const res = await fetch("/api/run/stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trace_id: currentTraceId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          stopBtn.disabled = true;
+        }
+      } catch (_) {}
     });
   </script>
 </body>
