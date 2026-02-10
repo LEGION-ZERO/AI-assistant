@@ -10,11 +10,11 @@ deepseek:
   base_url: "https://api.deepseek.com"   # Ollama: "http://192.168.1.205:11434/v1"  vLLM: "http://192.168.1.205:8081"
   model: "deepseek-chat"          # Ollama: "qwen2.5:7b-instruct"  vLLM: "Qwen/Qwen2.5-1.5B-Instruct"
   # 设为 true 时用「提示词+解析」实现函数调用，不依赖 API 的 tool_calls（适合本地模型，如 llama3）
-  use_prompt_tools: false
+  use_prompt_tools: true
   # 设为 true 时用「自研 Agent」：模型输出 JSON 或 <tool_call>，程序解析并调度，适合本地 DeepSeek/Ollama 无原生 func call
-  use_self_coded_fc: false
+  use_self_coded_fc: true
   # 为 true 时工具执行走 MCP（需先启动 mcp_server.py --tool-http），实现「通过 MCP 做 func call」
-  use_mcp_for_tools: false
+  use_mcp_for_tools: true
   mcp_tool_url: "http://127.0.0.1:8002/api/tool"  # 用 /api/tool 避免与 MCP streamable HTTP 校验冲突；端口 8002 与主站 8000 不冲突
 
 # 钉钉应用机器人（可选）：在群里 @ 机器人或单聊发指令即可执行运维
